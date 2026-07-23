@@ -9,11 +9,11 @@ import rehypeKatex from "rehype-katex";
 interface ResultsPanelProps {
   markdown: string;
   latex: string;
-  latexProgress?: string;
   onMarkdownEdit: (value: string) => void;
+  onLatexEdit: (value: string) => void;
   onRegenerateLatex: () => void;
   isRegenerating: boolean;
-  isLatexConverting?: boolean;
+  isReverseConverting?: boolean;
 }
 
 type Tab = "preview" | "latex" | "editor";
@@ -21,11 +21,11 @@ type Tab = "preview" | "latex" | "editor";
 export function ResultsPanel({
   markdown,
   latex,
-  latexProgress = "",
   onMarkdownEdit,
+  onLatexEdit,
   onRegenerateLatex,
   isRegenerating,
-  isLatexConverting = false,
+  isReverseConverting = false,
 }: ResultsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState(false);
@@ -285,17 +285,23 @@ export function ResultsPanel({
         )}
 
         {activeTab === "latex" && (
-          isRegenerating ? (
+          isRegenerating || isReverseConverting ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#F5F3EE] dark:bg-[#141620]">
               <div className="flex items-center gap-3">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#B8956A] border-t-transparent" />
-                <span className="text-sm text-muted-foreground font-medium">LaTeX 更新中...</span>
+                <span className="text-sm text-muted-foreground font-medium">
+                  {isReverseConverting ? "Markdown 更新中..." : "LaTeX 更新中..."}
+                </span>
               </div>
             </div>
           ) : (
-            <pre className="flex-1 overflow-auto p-6 text-xs leading-relaxed font-mono text-foreground bg-[#F5F3EE] dark:bg-[#141620]">
-              <code>{latex || latexProgress || "LaTeX 代码将在此处显示..."}</code>
-            </pre>
+            <textarea
+              value={latex}
+              onChange={(e) => onLatexEdit(e.target.value)}
+              className="flex-1 w-full resize-none bg-[#F5F3EE] dark:bg-[#141620] p-6 font-mono text-xs leading-relaxed text-foreground focus:outline-none placeholder:text-muted-foreground"
+              placeholder="LaTeX 代码将在此处显示..."
+              spellCheck={false}
+            />
           )
         )}
 

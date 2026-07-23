@@ -61,8 +61,8 @@ export default function Home() {
   const [validateProgress, setValidateProgress] = useState("");
   const [latexProgress, setLatexProgress] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isReverseConverting, setIsReverseConverting] = useState(false);
 
-  const isLatexConverting = step === "converting" || isRegenerating;
   const [errorMsg, setErrorMsg] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
@@ -78,6 +78,17 @@ export default function Home() {
     setValidateProgress("");
     setLatexProgress("");
     setErrorMsg("");
+    setIsRegenerating(false);
+    setIsReverseConverting(false);
+    // Clear debounce timers
+    if (editorDebounceRef.current) {
+      clearTimeout(editorDebounceRef.current);
+      editorDebounceRef.current = null;
+    }
+    if (latexDebounceRef.current) {
+      clearTimeout(latexDebounceRef.current);
+      latexDebounceRef.current = null;
+    }
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
@@ -211,15 +222,23 @@ export default function Home() {
 
   // Shared refs for regeneration logic
   const editorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latexDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPipelineRunningRef = useRef(false);
   const latestMarkdownRef = useRef(validatedMarkdown);
+  const latestLatexRef = useRef(latexCode);
   const isRegeneratingRef = useRef(false);
+  const isReverseConvertingRef = useRef(false);
   const pendingRegenerationRef = useRef(false); // tracks edits that happen during an active regeneration
+  const pendingReverseConversionRef = useRef(false); // tracks latex edits during active reverse conversion
 
-  // Keep ref in sync with state
+  // Keep refs in sync with state
   useEffect(() => {
     latestMarkdownRef.current = validatedMarkdown;
   }, [validatedMarkdown]);
+
+  useEffect(() => {
+    latestLatexRef.current = latexCode;
+  }, [latexCode]);
 
   // Track when pipeline is running to avoid triggering auto-regenerate
   useEffect(() => {
@@ -258,6 +277,7 @@ export default function Home() {
         setLatexProgress((prev) => prev + chunk);
       });
       setLatexCode(latexText);
+      latestLatexRef.current = latexText;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : '重新生成失败';
@@ -274,9 +294,59 @@ export default function Home() {
     }
   }, []);
 
+  // Reverse conversion: LaTeX → Markdown
+  const reverseConvertMarkdown = useCallback(async () => {
+    if (isReverseConvertingRef.current) {
+      pendingReverseConversionRef.current = true;
+      return;
+    }
+
+    isReverseConvertingRef.current = true;
+    setIsReverseConverting(true);
+
+    try {
+      const controller = new AbortController();
+
+      const response = await fetch('/api/reverse-latex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latex: latestLatexRef.current }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) throw new Error('Markdown 转换失败');
+
+      let markdownText = '';
+      markdownText = await readSSEStream(response, () => {
+        // Could show progress if needed
+      });
+      setValidatedMarkdown(markdownText);
+      latestMarkdownRef.current = markdownText;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      const message = err instanceof Error ? err.message : '反向转换失败';
+      setErrorMsg(message);
+    } finally {
+      setIsReverseConverting(false);
+      isReverseConvertingRef.current = false;
+
+      // If latex edits came in during reverse conversion, re-trigger
+      if (pendingReverseConversionRef.current) {
+        pendingReverseConversionRef.current = false;
+        reverseConvertMarkdown();
+      }
+    }
+  }, []);
+
   const handleMarkdownEdit = useCallback((value: string) => {
     setValidatedMarkdown(value);
     latestMarkdownRef.current = value;
+
+    // Clear any pending LaTeX debounce to avoid conflicts
+    if (latexDebounceRef.current) {
+      clearTimeout(latexDebounceRef.current);
+      latexDebounceRef.current = null;
+    }
 
     // Debounce auto-regeneration — only when pipeline is settled
     if (editorDebounceRef.current) {
@@ -288,6 +358,27 @@ export default function Home() {
       regenerateLatex();
     }, 1500);
   }, [step, regenerateLatex]);
+
+  const handleLatexEdit = useCallback((value: string) => {
+    setLatexCode(value);
+    latestLatexRef.current = value;
+
+    // Clear any pending editor debounce to avoid conflicts
+    if (editorDebounceRef.current) {
+      clearTimeout(editorDebounceRef.current);
+      editorDebounceRef.current = null;
+    }
+
+    // Debounce reverse conversion — only when pipeline is settled
+    if (latexDebounceRef.current) {
+      clearTimeout(latexDebounceRef.current);
+    }
+    if (step !== 'done' && step !== 'error') return;
+
+    latexDebounceRef.current = setTimeout(() => {
+      reverseConvertMarkdown();
+    }, 1500);
+  }, [step, reverseConvertMarkdown]);
 
   const handleRegenerateLatex = useCallback(async () => {
     // Cancel any pending debounced auto-regeneration
@@ -441,11 +532,11 @@ export default function Home() {
                 <ResultsPanel
                   markdown={validatedMarkdown}
                   latex={latexCode}
-                  latexProgress={latexProgress}
                   onMarkdownEdit={handleMarkdownEdit}
+                  onLatexEdit={handleLatexEdit}
                   onRegenerateLatex={handleRegenerateLatex}
                   isRegenerating={isRegenerating}
-                  isLatexConverting={isLatexConverting}
+                  isReverseConverting={isReverseConverting}
                 />
               ) : (
                 <div className="flex h-full min-h-[400px] items-center justify-center border border-border rounded-lg bg-card">
