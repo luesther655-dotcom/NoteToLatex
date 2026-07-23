@@ -1,9 +1,10 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
-
-cd "${COZE_WORKSPACE_PATH}"
+# 基于脚本位置定位项目根目录（scripts/ 的上一级）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_DIR"
 
 echo "Installing dependencies..."
 pnpm install --prefer-frozen-lockfile --prefer-offline --loglevel debug --reporter=append-only

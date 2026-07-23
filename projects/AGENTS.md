@@ -51,3 +51,33 @@ src/
 - 浅色: 象牙白背景 #FAFAF8 + 学术蓝 #2563EB
 - 深色: 深墨色 #0F1117 + 亮蓝 #60A5FA
 - 标题衬线体 (Noto Serif SC), 正文无衬线 (Inter), 代码等宽 (JetBrains Mono)
+
+## Coze 配置
+
+### 项目结构
+- **工作区根目录**: `/workspace/projects`
+- **技术项目根目录**: `/workspace/projects/projects`
+- **根 `.coze`**: `/workspace/projects/.coze`（平台读取的最终生效配置）
+- **子项目 `.coze`**: `/workspace/projects/projects/.coze`
+
+### 预览链路
+- **判定依据**: 项目是 Next.js Web 应用，核心结果需要通过浏览器交互验证
+- **预览入口**: `pnpm tsx watch src/server.ts`（自定义 Next.js 服务器）
+- **预览脚本**:
+  - `scripts/coze-preview-build.sh` - 安装依赖
+  - `scripts/coze-preview-run.sh` - 启动预览服务（绑定 0.0.0.0:5000）
+- **根 `.coze` 映射**: `[dev].build/run` 指向 `projects/scripts/coze-preview-*.sh`
+
+### 部署配置
+- **部署类型**: `service` (Web)
+- **部署脚本**:
+  - `scripts/build.sh` - 安装依赖 + Next.js 构建 + tsup 打包服务端
+  - `scripts/start.sh` - 启动 `node dist/server.js`（端口 5000）
+- **根 `.coze` 映射**: `[deploy].build/run` 指向 `projects/scripts/build.sh` 和 `start.sh`
+- **脚本工作目录**: 所有脚本均基于 `SCRIPT_DIR` 推导 `PROJECT_DIR`，不依赖调用时 `pwd`
+
+### 长期注意事项
+- 预览服务必须绑定 `0.0.0.0:5000`，不能是 `127.0.0.1` 或 `[::1]`
+- 部署脚本使用 `DEPLOY_RUN_PORT` 环境变量支持端口覆盖，默认 5000
+- 禁止使用 `9000` 端口（系统保留）
+- Node.js 项目只允许使用 `pnpm`，禁止 `npm` 或 `yarn`
