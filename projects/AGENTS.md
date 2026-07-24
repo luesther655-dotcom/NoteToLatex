@@ -116,3 +116,8 @@ src/
 - 禁止使用 `9000` 端口（系统保留）
 - Node.js 项目只允许使用 `pnpm`，禁止 `npm` 或 `yarn`
 - **Supabase 配置缺失降级**: 当 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 未配置时，`auth-context.tsx` 会降级处理（返回 null），页面可正常显示但认证功能不可用。需在平台配置 Supabase 集成后才能使用登录/注册/历史记录功能。
+- **LLM API 环境变量**: 默认 LLM 配置通过环境变量管理，优先级：用户前端传入 > 环境变量 > SDK 默认值
+  - `DEFAULT_LLM_API_KEY` - 默认 API Key
+  - `DEFAULT_LLM_BASE_URL` - 默认 Base URL
+  - `DEFAULT_LLM_MODEL` - 默认模型名称（默认 `doubao-seed-2-0-pro-260215`）
+  - 配置模块: `src/lib/llm-config.ts`，所有 API 路由统一使用 `createLLMClient()` 创建客户端

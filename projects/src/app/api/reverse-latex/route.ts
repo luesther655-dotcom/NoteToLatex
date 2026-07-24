@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { LLMClient, Config, HeaderUtils, type Message } from "coze-coding-dev-sdk";
+import { type Message } from "coze-coding-dev-sdk";
+import { createLLMClient } from "@/lib/llm-config";
 
 export const maxDuration = 120;
 
@@ -14,9 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const config = new Config();
-    const client = new LLMClient(config, customHeaders);
+    const { client, model } = createLLMClient(undefined, request.headers);
 
     const messages: Message[] = [
       {
@@ -59,7 +58,7 @@ Conversion Rules:
     ];
 
     const stream = client.stream(messages, {
-      model: "doubao-seed-2-0-pro-260215",
+      model,
       temperature: 0.1,
     });
 
