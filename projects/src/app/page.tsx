@@ -69,6 +69,7 @@ export default function Home() {
   const [isReverseConverting, setIsReverseConverting] = useState(false);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [historySaved, setHistorySaved] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -248,6 +249,7 @@ export default function Home() {
             const data = await response.json();
             setCurrentHistoryId(data.history?.id || null);
             setHistorySaved(true);
+            setHistoryRefreshKey(prev => prev + 1); // Trigger sidebar refresh
           } else {
             const errData = await response.json();
             console.error("Failed to save history:", errData);
@@ -557,7 +559,10 @@ export default function Home() {
         ) : step === "idle" ? (
           /* Upload State with history sidebar */
           <div className="flex gap-6">
-            <HistorySidebar onSelectHistory={handleSelectHistory} />
+            <HistorySidebar 
+              onSelectHistory={handleSelectHistory}
+              refreshKey={historyRefreshKey}
+            />
             <div className="flex-1 mx-auto max-w-xl">
               <div className="mb-8 text-center">
                 <h2 className="text-2xl font-serif font-bold tracking-tight">
@@ -584,7 +589,11 @@ export default function Home() {
         ) : (
           /* Processing / Results State */
           <div className="flex gap-6">
-            <HistorySidebar onSelectHistory={handleSelectHistory} selectedId={currentHistoryId || undefined} />
+            <HistorySidebar 
+              onSelectHistory={handleSelectHistory} 
+              selectedId={currentHistoryId || undefined}
+              refreshKey={historyRefreshKey}
+            />
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left panel: Upload preview + Pipeline */}
               <div className="lg:col-span-4 space-y-4">
