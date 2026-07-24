@@ -601,14 +601,6 @@ export default function Home() {
         ) : !user ? (
           /* Not logged in - show auth form */
           <div className="mx-auto max-w-md py-8">
-            <div className="mb-6 text-center">
-              <h2 className="text-2xl font-serif font-bold tracking-tight">
-                登录以保存您的转换记录
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                注册或登录以保存转换历史，随时查看和编辑之前的结果。
-              </p>
-            </div>
             <AuthForm />
           </div>
         ) : step === "idle" ? (
