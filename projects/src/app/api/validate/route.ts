@@ -4,21 +4,20 @@ import { createLLMClient } from "@/lib/llm-config";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { markdownContent, latexContent, apiConfig } = body;
+    const { markdown: markdownContent, markdownContent: mdContent, latexContent, apiConfig } = body;
+    const text = markdownContent || mdContent;
 
-    if (!markdownContent || !latexContent) {
+    if (!text) {
       return NextResponse.json(
-        { error: "Missing markdownContent or latexContent" },
+        { error: "Missing markdown content" },
         { status: 400 }
       );
     }
 
     const { client, model } = createLLMClient(apiConfig, request.headers);
 
-    const messages = [
-      {
-        role: "system" as const,
-        content: `You are a LaTeX validation expert. Your task is to compare the original Markdown content with the LaTeX conversion result and validate the accuracy.
+    const systemPrompt = latexContent
+      ? `You are a LaTeX validation expert. Your task is to compare the original Markdown content with the LaTeX conversion result and validate the accuracy.
 
 Compare the following:
 1. **Content Completeness**: Does the LaTeX output contain all the information from the original?
@@ -41,12 +40,25 @@ Format your response as JSON:
   "suggestions": ["string", ...]
 }
 
-Output ONLY the JSON, no explanations.`,
-      },
-      {
-        role: "user" as const,
-        content: `Original Markdown:\n${markdownContent}\n\nConverted LaTeX:\n${latexContent}`,
-      },
+Output ONLY the JSON, no explanations.`
+      : `You are a markdown formatting expert. Your task is to clean up and format the OCR extracted text into well-structured Markdown.
+
+Fix the following issues:
+1. **Formatting**: Ensure proper Markdown syntax (headings, lists, code blocks, etc.)
+2. **Spacing**: Fix extra spaces, line breaks, and paragraph formatting
+3. **Math**: Ensure formulas are properly formatted with $...$ or $$...$$
+4. **Tables**: Fix any table formatting issues
+5. **Lists**: Ensure proper list indentation and numbering
+
+Output ONLY the cleaned Markdown text, no explanations or extra formatting.`;
+
+    const userMessage = latexContent
+      ? `Original Markdown:\n${text}\n\nConverted LaTeX:\n${latexContent}`
+      : `Clean up this OCR text into well-formatted Markdown:\n\n${text}`;
+
+    const messages = [
+      { role: "system" as const, content: systemPrompt },
+      { role: "user" as const, content: userMessage },
     ];
 
     const stream = client.stream(messages, { model, temperature: 0.1 });
