@@ -443,7 +443,18 @@ export default function Home() {
           }
 
           const chunkText = await readSSEStream(latexResponse, () => {});
-          latexText += (latexText ? "\n\n" : "") + chunkText;
+          // Clean potential markdown code block markers from LLM output
+          let cleanedChunk = chunkText.trim();
+          if (cleanedChunk.startsWith("```latex") || cleanedChunk.startsWith("```tex")) {
+            cleanedChunk = cleanedChunk.slice(cleanedChunk.indexOf("\n") + 1);
+          } else if (cleanedChunk.startsWith("```")) {
+            cleanedChunk = cleanedChunk.slice(3);
+            if (cleanedChunk.startsWith("\n")) cleanedChunk = cleanedChunk.slice(1);
+          }
+          if (cleanedChunk.endsWith("```")) {
+            cleanedChunk = cleanedChunk.slice(0, -3);
+          }
+          latexText += (latexText ? "\n\n" : "") + cleanedChunk.trim();
         }
       }
       setLatexCode(latexText);
