@@ -56,6 +56,11 @@ async function readSSEStream(
 
 export default function Home() {
   const { user, loading: authLoading, signOut, getToken } = useAuth();
+  // Use refs to store latest user and getToken for async operations
+  const userRef = useRef(user);
+  const getTokenRef = useRef(getToken);
+  userRef.current = user;
+  getTokenRef.current = getToken;
   const [step, setStep] = useState<PipelineStep>("idle");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -229,10 +234,12 @@ export default function Home() {
       setStep("done");
 
       // Save to history if user is logged in
-      // Re-check user status from auth context to ensure we have the latest value
-      if (user) {
+      // Use refs to get the latest user and getToken values
+      const currentUser = userRef.current;
+      const currentGetToken = getTokenRef.current;
+      if (currentUser) {
         try {
-          const token = await getToken();
+          const token = await currentGetToken();
           if (!token) {
             console.warn("No auth token available, skipping history save");
             return;
@@ -273,7 +280,7 @@ export default function Home() {
       setErrorMsg(message);
       setStep("error");
     }
-  }, [resetState, user, getToken, uploadedFile, previewUrl]);
+  }, [resetState, uploadedFile, previewUrl]);
 
   // Shared refs for regeneration logic
   const editorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
