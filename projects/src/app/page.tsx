@@ -70,10 +70,13 @@ export default function Home() {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [historySaved, setHistorySaved] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
+  const lastSavedContentRef = useRef<{ markdown: string; latex: string } | null>(null);
 
   const resetState = useCallback(() => {
     setStep("idle");
@@ -90,6 +93,8 @@ export default function Home() {
     setIsReverseConverting(false);
     setCurrentHistoryId(null);
     setHistorySaved(false);
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
     // Clear debounce timers
     if (editorDebounceRef.current) {
       clearTimeout(editorDebounceRef.current);
@@ -388,6 +393,7 @@ export default function Home() {
   const handleMarkdownEdit = useCallback((value: string) => {
     setValidatedMarkdown(value);
     latestMarkdownRef.current = value;
+    setHasUnsavedChanges(true);
 
     // Clear any pending LaTeX debounce to avoid conflicts
     if (latexDebounceRef.current) {
@@ -409,6 +415,7 @@ export default function Home() {
   const handleLatexEdit = useCallback((value: string) => {
     setLatexCode(value);
     latestLatexRef.current = value;
+    setHasUnsavedChanges(true);
 
     // Clear any pending editor debounce to avoid conflicts
     if (editorDebounceRef.current) {
@@ -446,76 +453,73 @@ export default function Home() {
     setErrorMsg("");
     setUploadedFile(null);
     setPreviewUrl(null);
+    setHasUnsavedChanges(false);
     // Update last saved content to prevent unnecessary auto-save
     lastSavedContentRef.current = { markdown: item.markdown_content, latex: item.latex_content };
   }, []);
 
-  // Auto-save history when content changes (debounced)
-  const saveHistoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoSaveCountRef = useRef(0);
-  const lastSavedContentRef = useRef<{ markdown: string; latex: string } | null>(null);
-  
-  useEffect(() => {
-    autoSaveCountRef.current += 1;
-    console.log("Auto-save useEffect triggered:", { 
-      count: autoSaveCountRef.current,
-      userId: user?.id, 
-      step, 
-      currentHistoryId, 
-      hasMarkdown: validatedMarkdown.length > 0,
-      hasLatex: latexCode.length > 0
-    });
-    
-    // Cancel any pending save when dependencies change
-    if (saveHistoryTimeoutRef.current) {
-      clearTimeout(saveHistoryTimeoutRef.current);
-      saveHistoryTimeoutRef.current = null;
-    }
-    
-    if (!user || step !== "done" || !currentHistoryId) {
-      console.log("Auto-save skipped:", { hasUser: !!user, step, hasHistoryId: !!currentHistoryId });
+  // Handle manual save to history
+  const handleSave = useCallback(async () => {
+    if (!user || !hasUnsavedChanges) return;
+
+    const token = await getToken();
+    if (!token) {
+      console.error('[History] No auth token available');
       return;
     }
-    
-    // Check if content actually changed since last save
-    const lastSaved = lastSavedContentRef.current;
-    if (lastSaved && lastSaved.markdown === validatedMarkdown && lastSaved.latex === latexCode) {
-      console.log("Auto-save skipped: content unchanged");
-      return;
-    }
-    
-    saveHistoryTimeoutRef.current = setTimeout(async () => {
-      try {
-        const token = await getToken();
-        console.log("Auto-updating history:", { id: currentHistoryId, hasToken: !!token });
+
+    setIsSaving(true);
+
+    try {
+      if (currentHistoryId) {
+        // Update existing history
         const response = await fetch(`/api/history?id=${currentHistoryId}`, {
-          method: "PUT",
+          method: 'PUT',
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
             markdown_content: validatedMarkdown,
             latex_content: latexCode,
           }),
         });
-        const result = await response.json();
-        console.log("Auto-update response:", response.status, result);
-        // Update last saved content after successful save
-        lastSavedContentRef.current = { markdown: validatedMarkdown, latex: latexCode };
-      } catch (e) {
-        console.error("Failed to update history:", e);
+
+        if (response.ok) {
+          setHasUnsavedChanges(false);
+          setHistoryRefreshKey(prev => prev + 1);
+          lastSavedContentRef.current = { markdown: validatedMarkdown, latex: latexCode };
+        }
+      } else {
+        // Create new history
+        const response = await fetch('/api/history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: `转换记录 ${new Date().toLocaleString('zh-CN')}`,
+            markdown_content: validatedMarkdown,
+            latex_content: latexCode,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentHistoryId(data.history?.id || null);
+          setHistorySaved(true);
+          setHasUnsavedChanges(false);
+          setHistoryRefreshKey(prev => prev + 1);
+          lastSavedContentRef.current = { markdown: validatedMarkdown, latex: latexCode };
+        }
       }
-    }, 2000);
-    
-    return () => {
-      console.log("Auto-save cleanup called, count:", autoSaveCountRef.current);
-      if (saveHistoryTimeoutRef.current) {
-        clearTimeout(saveHistoryTimeoutRef.current);
-        saveHistoryTimeoutRef.current = null;
-      }
-    };
-  }, [user?.id, step, currentHistoryId, validatedMarkdown, latexCode, getToken]);
+    } catch (error) {
+      console.error('[History] Save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, hasUnsavedChanges, currentHistoryId, validatedMarkdown, latexCode, getToken]);
 
   const isProcessing = step !== "idle" && step !== "done" && step !== "error";
   const hasResults = step === "done" || (step === "error" && validatedMarkdown.length > 0);
@@ -709,6 +713,9 @@ export default function Home() {
                     onRegenerateLatex={handleRegenerateLatex}
                     isRegenerating={isRegenerating}
                     isReverseConverting={isReverseConverting}
+                    onSave={user ? handleSave : undefined}
+                    isSaving={isSaving}
+                    hasUnsavedChanges={hasUnsavedChanges}
                   />
                 ) : (
                   <div className="flex h-full min-h-[400px] items-center justify-center border border-border rounded-lg bg-card">

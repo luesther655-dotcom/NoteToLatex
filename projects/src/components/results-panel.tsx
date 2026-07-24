@@ -14,6 +14,9 @@ interface ResultsPanelProps {
   onRegenerateLatex: () => void;
   isRegenerating: boolean;
   isReverseConverting?: boolean;
+  onSave?: () => void;
+  isSaving?: boolean;
+  hasUnsavedChanges?: boolean;
 }
 
 type Tab = "preview" | "latex" | "editor";
@@ -26,6 +29,9 @@ export function ResultsPanel({
   onRegenerateLatex,
   isRegenerating,
   isReverseConverting = false,
+  onSave,
+  isSaving = false,
+  hasUnsavedChanges = false,
 }: ResultsPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState(false);
@@ -241,6 +247,35 @@ export function ResultsPanel({
                     <path d="M16 16h5v5" />
                   </svg>
                   重新生成 LaTeX
+                </>
+              )}
+            </button>
+          )}
+          {onSave && (
+            <button
+              onClick={onSave}
+              disabled={isSaving || !hasUnsavedChanges}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                hasUnsavedChanges
+                  ? "bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              }`}
+            >
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  {hasUnsavedChanges ? "保存修改" : "已保存"}
                 </>
               )}
             </button>
