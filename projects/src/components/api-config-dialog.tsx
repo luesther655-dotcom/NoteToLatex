@@ -9,6 +9,10 @@ interface ApiConfigDialogProps {
 }
 
 interface ApiConfig {
+  ocr: {
+    token: string
+    model: string
+  }
   validate: {
     provider: string
     model: string
@@ -18,6 +22,10 @@ interface ApiConfig {
 }
 
 const defaultConfig: ApiConfig = {
+  ocr: {
+    token: "25b06606a7df2c954d5edeaa68d86f3cab0f5bba",
+    model: "PaddleOCR-VL-1.6",
+  },
   validate: {
     provider: "coze",
     model: "doubao-seed-2-0-pro-260215",
@@ -63,6 +71,13 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
     }
   }
 
+  const updateOcrConfig = (key: keyof ApiConfig["ocr"], value: string) => {
+    setConfig(prev => ({
+      ...prev,
+      ocr: { ...prev.ocr, [key]: value },
+    }))
+  }
+
   const updateValidateConfig = (key: keyof ApiConfig["validate"], value: string) => {
     setConfig(prev => ({
       ...prev,
@@ -88,6 +103,37 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
 
         {/* 内容 */}
         <div className="p-6 space-y-6">
+          {/* OCR 配置 */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Key className="w-4 h-4 text-[#B8956A]" />
+              OCR 模型配置
+            </div>
+            
+            <div className="space-y-3 pl-6">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Token</label>
+                <input
+                  type="password"
+                  value={config.ocr.token}
+                  onChange={(e) => updateOcrConfig("token", e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
+                  placeholder="PaddleOCR Token"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">模型名称</label>
+                <input
+                  type="text"
+                  value={config.ocr.model}
+                  onChange={(e) => updateOcrConfig("model", e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
+                  placeholder="PaddleOCR-VL-1.6"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* 校验 LLM 配置 */}
           <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">

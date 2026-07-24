@@ -7,19 +7,18 @@ import { PDFDocument } from "pdf-lib";
 export const maxDuration = 300;
 
 const PADDLE_OCR_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs";
-const PADDLE_OCR_TOKEN =
-  process.env.PADDLE_OCR_TOKEN || "25b06606a7df2c954d5edeaa68d86f3cab0f5bba";
-const PADDLE_OCR_MODEL = "PaddleOCR-VL-1.6";
 
 async function submitOcrJob(
   filePath: string,
   fileName: string,
-  mimeType: string
+  mimeType: string,
+  token: string,
+  model: string
 ): Promise<string> {
   const buffer = await readFile(filePath);
   const blob = new Blob([buffer], { type: mimeType });
   const form = new FormData();
-  form.set("model", PADDLE_OCR_MODEL);
+  form.set("model", model);
   form.set(
     "optionalPayload",
     JSON.stringify({
@@ -32,7 +31,7 @@ async function submitOcrJob(
 
   const response = await fetch(PADDLE_OCR_URL, {
     method: "POST",
-    headers: { Authorization: `bearer ${PADDLE_OCR_TOKEN}` },
+    headers: { Authorization: `bearer ${token}` },
     body: form,
   });
 
@@ -45,11 +44,11 @@ async function submitOcrJob(
   return data.data.jobId;
 }
 
-async function pollOcrJob(jobId: string): Promise<string> {
+async function pollOcrJob(jobId: string, token: string): Promise<string> {
   const maxRetries = 120;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const response = await fetch(`${PADDLE_OCR_URL}/${jobId}`, {
-      headers: { Authorization: `bearer ${PADDLE_OCR_TOKEN}` },
+      headers: { Authorization: `bearer ${token}` },
     });
 
     if (!response.ok) {
@@ -161,7 +160,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { files } = body;
+    const { files, apiConfig } = body;
+
+    const ocrToken = apiConfig?.token || process.env.PADDLE_OCR_TOKEN || "25b06606a7df2c954d5edeaa68d86f3cab0f5bba";
+    const ocrModel = apiConfig?.model || "PaddleOCR-VL-1.6";
 
     if (!files || files.length === 0) {
       return new Response(JSON.stringify({ error: "No file provided" }), {
@@ -203,8 +205,8 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           // Submit one job for all pages
-          const jobId = await submitOcrJob(submitPath, submitName, submitMime);
-          const markdown = await pollOcrJob(jobId);
+          const jobId = await submitOcrJob(submitPath, submitName, submitMime, ocrToken, ocrModel);
+          const markdown = await pollOcrJob(jobId, ocrToken);
 
           const data = `data: ${JSON.stringify({ text: markdown })}\n\n`;
           controller.enqueue(encoder.encode(data));
