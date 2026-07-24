@@ -1,8 +1,12 @@
 import { NextRequest } from "next/server";
-import { type Message } from "coze-coding-dev-sdk";
-import { createLLMClient, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL } from "@/lib/llm-config";
+import { DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL } from "@/lib/llm-config";
 
 export const maxDuration = 120;
+
+interface Message {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,19 +20,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Use DeepSeek as default for validation; user's custom config overrides
-    const deepseekConfig = {
-      apiKey: DEEPSEEK_API_KEY,
-      baseUrl: DEEPSEEK_BASE_URL,
-      model: DEEPSEEK_MODEL,
+    const mergedConfig = {
+      apiKey: apiConfig?.apiKey || DEEPSEEK_API_KEY,
+      baseUrl: apiConfig?.baseUrl || DEEPSEEK_BASE_URL,
+      model: apiConfig?.model || DEEPSEEK_MODEL,
     };
-    const mergedConfig = apiConfig
-      ? { ...deepseekConfig, ...apiConfig }
-      : deepseekConfig;
-    const { client, model } = createLLMClient(mergedConfig, request.headers);
 
     const messages: Message[] = [
       {
-        role: "system" as const,
+        role: "system",
         content: `You are a meticulous academic proofreader specializing in mathematics and scientific notation. Your task is to review and correct OCR-transcribed handwritten notes.
 
 Your responsibilities:
@@ -65,34 +65,86 @@ If the content comes from multiple pages or images that are contextually related
 Important: Maintain the original meaning and structure. Only fix clear errors.`,
       },
       {
-        role: "user" as const,
+        role: "user",
         content: `Please review and correct the following OCR-transcribed handwritten notes. Fix any errors in math formulas, LaTeX syntax, and Markdown formatting while preserving all content. Output ONLY valid Markdown with proper LaTeX math syntax:\n\n${markdown}`,
       },
     ];
 
-    const stream = client.stream(messages, {
-      model,
-      temperature: 0.1,
+    // Call DeepSeek's OpenAI-compatible API directly
+    const response = await fetch(`${mergedConfig.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${mergedConfig.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: mergedConfig.model,
+        messages,
+        temperature: 0.1,
+        stream: true,
+      }),
     });
 
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => "");
+      return new Response(
+        JSON.stringify({
+          error: `DeepSeek API error: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Stream the response back to the client
     const encoder = new TextEncoder();
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return new Response(
+        JSON.stringify({ error: "No response body from DeepSeek" }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of stream) {
-            if (chunk.content) {
-              const data = `data: ${JSON.stringify({ text: chunk.content.toString() })}\n\n`;
-              controller.enqueue(encoder.encode(data));
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+              const data = trimmed.slice(6);
+              if (data === "[DONE]") continue;
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content || "";
+                if (content) {
+                  const sse = `data: ${JSON.stringify({ text: content })}\n\n`;
+                  controller.enqueue(encoder.encode(sse));
+                }
+              } catch {
+                // Skip malformed JSON lines
+              }
             }
           }
+
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : "Stream error";
           controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMsg })}\n\n`
-            )
+            encoder.encode(`data: ${JSON.stringify({ error: errorMsg })}\n\n`)
           );
           controller.close();
         }
