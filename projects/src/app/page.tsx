@@ -7,7 +7,6 @@ import { FileUpload } from "@/components/file-upload";
 import { ProcessingPipeline } from "@/components/processing-pipeline";
 import { ResultsPanel } from "@/components/results-panel";
 import { AuthForm } from "@/components/auth-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { HistorySidebar, type ConversionHistoryItem } from "@/components/history-sidebar";
 import { UserMenu } from "@/components/user-menu";
 import { ProfileSettingsDialog } from "@/components/profile-settings-dialog";
@@ -208,7 +207,7 @@ export default function Home() {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showApiConfig, setShowApiConfig] = useState(false);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -895,22 +894,11 @@ export default function Home() {
                 新建转换任务
               </button>
             )}
-            {user ? (
+            {user && (
               <UserMenu
                 onOpenSettings={() => setShowProfileSettings(true)}
                 onOpenApiConfig={() => setShowApiConfig(true)}
               />
-            ) : (
-              <button
-                onClick={() => setShowAuthDialog(true)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-[#B8956A] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#A37D5A]"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                登录
-              </button>
             )}
             <Link
               href="/help"
@@ -946,7 +934,7 @@ export default function Home() {
               </p>
             </div>
             <div className="w-full max-w-sm">
-              <AuthForm onSuccess={() => setShowAuthDialog(false)} />
+              <AuthForm />
             </div>
           </div>
         ) : step === "idle" ? (
@@ -1122,18 +1110,6 @@ export default function Home() {
         onClose={() => setShowApiConfig(false)}
       />
 
-      {/* Auth Dialog */}
-      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>登录 NoteToLaTeX</DialogTitle>
-            <DialogDescription>
-              登录后可保存和查看历史转换记录
-            </DialogDescription>
-          </DialogHeader>
-          <AuthForm onSuccess={() => setShowAuthDialog(false)} />
-        </DialogContent>
-      </Dialog>
-    </div>
+      </div>
   );
 }
