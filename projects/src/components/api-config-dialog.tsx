@@ -43,16 +43,23 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  // 加载保存的配置
+  // 加载保存的配置，合并默认值以确保新字段生效
   useEffect(() => {
     if (isOpen) {
       const savedConfig = localStorage.getItem("apiConfig")
       if (savedConfig) {
         try {
-          setConfig(JSON.parse(savedConfig))
+          const parsed = JSON.parse(savedConfig)
+          // 合并默认值，确保 provider/model/baseUrl 同步更新
+          setConfig({
+            ocr: { ...defaultConfig.ocr, ...parsed.ocr },
+            validate: { ...defaultConfig.validate, ...parsed.validate },
+          })
         } catch {
           setConfig(defaultConfig)
         }
+      } else {
+        setConfig(defaultConfig)
       }
     }
   }, [isOpen])
