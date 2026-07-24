@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FileUpload } from "@/components/file-upload";
 import { ProcessingPipeline } from "@/components/processing-pipeline";
@@ -887,11 +888,22 @@ export default function Home() {
               </button>
             )}
             {user && (
-              <UserMenu 
-                onOpenSettings={() => setShowProfileSettings(true)} 
+              <UserMenu
+                onOpenSettings={() => setShowProfileSettings(true)}
                 onOpenApiConfig={() => setShowApiConfig(true)}
               />
             )}
+            <Link
+              href="/help"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <path d="M12 17h.01" />
+              </svg>
+              帮助
+            </Link>
             <ThemeToggle />
           </div>
         </div>

@@ -90,9 +90,7 @@ export function UserMenu({ onOpenSettings, onOpenApiConfig }: UserMenuProps) {
               API 配置
             </button>
             <a
-              href="https://github.com/your-repo/wiki"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/help"
               className="w-full flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
             >
               <HelpCircle className="w-4 h-4" />
