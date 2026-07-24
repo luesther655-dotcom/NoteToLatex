@@ -245,50 +245,8 @@ export default function Home() {
     isPipelineRunningRef.current = step !== 'idle' && step !== 'done' && step !== 'error';
   }, [step]);
 
-  // Normalize text for comparison: remove extra whitespace, normalize line endings
-  const normalizeForComparison = useCallback((text: string): string => {
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/[ \t]+$/gm, '')
-      .trim();
-  }, []);
-
-  // Check if two texts are semantically similar enough
-  const isSimilarEnough = useCallback((original: string, converted: string): boolean => {
-    const normOriginal = normalizeForComparison(original);
-    const normConverted = normalizeForComparison(converted);
-    
-    // Exact match after normalization
-    if (normOriginal === normConverted) return true;
-    
-    // Check if key content is preserved (math expressions, headings, etc.)
-    // Extract math expressions
-    const mathRegex = /\$\$?[^$]+\$\$?/g;
-    const originalMath = normOriginal.match(mathRegex) || [];
-    
-    // If math expressions differ significantly, not similar enough
-    if (originalMath.length > 0) {
-      const mathMatchRate = originalMath.filter(m => normConverted.includes(m)).length / originalMath.length;
-      if (mathMatchRate < 0.8) return false;
-    }
-    
-    // Check headings preservation
-    const headingRegex = /^#+\s.+$/gm;
-    const originalHeadings = normOriginal.match(headingRegex) || [];
-    const convertedHeadings = normConverted.match(headingRegex) || [];
-    
-    if (originalHeadings.length > 0 && convertedHeadings.length === 0) return false;
-    
-    // Simple length check - if converted is way shorter, something went wrong
-    const lengthRatio = normConverted.length / Math.max(normOriginal.length, 1);
-    if (lengthRatio < 0.5 || lengthRatio > 2.5) return false;
-    
-    return true;
-  }, [normalizeForComparison]);
-
   // Shared regeneration logic — calls /api/latex with the latest markdown.
-  // After completion, verifies by reverse-converting and comparing.
+  // LLM is instructed to ensure content consistency in the conversion.
   const regenerateLatex = useCallback(async () => {
     if (isRegeneratingRef.current) {
       pendingRegenerationRef.current = true;
@@ -300,57 +258,25 @@ export default function Home() {
     setLatexProgress('');
     setLatexCode('');
 
-    const maxIterations = 2;
-    let currentMarkdown = latestMarkdownRef.current;
-
     try {
-      for (let iteration = 0; iteration < maxIterations; iteration++) {
-        const controller = new AbortController();
+      const controller = new AbortController();
 
-        // Step 1: Convert Markdown → LaTeX
-        const latexResponse = await fetch('/api/latex', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ markdown: currentMarkdown }),
-          signal: controller.signal,
-        });
+      const latexResponse = await fetch('/api/latex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: latestMarkdownRef.current }),
+        signal: controller.signal,
+      });
 
-        if (!latexResponse.ok) throw new Error('LaTeX 转换失败');
+      if (!latexResponse.ok) throw new Error('LaTeX 转换失败');
 
-        let latexText = '';
-        latexText = await readSSEStream(latexResponse, (chunk) => {
-          setLatexProgress((prev) => prev + chunk);
-        });
+      let latexText = '';
+      latexText = await readSSEStream(latexResponse, (chunk) => {
+        setLatexProgress((prev) => prev + chunk);
+      });
 
-        setLatexCode(latexText);
-        latestLatexRef.current = latexText;
-
-        // Step 2: Verify by reverse-converting LaTeX → Markdown
-        if (iteration < maxIterations - 1) {
-          const verifyResponse = await fetch('/api/reverse-latex', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ latex: latexText }),
-            signal: controller.signal,
-          });
-
-          if (!verifyResponse.ok) break;
-
-          let verifiedMarkdown = '';
-          verifiedMarkdown = await readSSEStream(verifyResponse, () => {});
-
-          // Step 3: Compare and decide if another iteration is needed
-          if (isSimilarEnough(currentMarkdown, verifiedMarkdown)) {
-            // Good enough, stop iterating
-            break;
-          }
-
-          // Not similar enough, use the verified markdown for next iteration
-          currentMarkdown = verifiedMarkdown;
-          setValidatedMarkdown(verifiedMarkdown);
-          latestMarkdownRef.current = verifiedMarkdown;
-        }
-      }
+      setLatexCode(latexText);
+      latestLatexRef.current = latexText;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : '重新生成失败';
@@ -364,9 +290,10 @@ export default function Home() {
         regenerateLatex();
       }
     }
-  }, [isSimilarEnough]);
+  }, []);
 
-  // Reverse conversion: LaTeX → Markdown with verification
+  // Reverse conversion: LaTeX → Markdown
+  // LLM is instructed to ensure content consistency in the conversion.
   const reverseConvertMarkdown = useCallback(async () => {
     if (isReverseConvertingRef.current) {
       pendingReverseConversionRef.current = true;
@@ -376,54 +303,23 @@ export default function Home() {
     isReverseConvertingRef.current = true;
     setIsReverseConverting(true);
 
-    const maxIterations = 2;
-    let currentLatex = latestLatexRef.current;
-
     try {
-      for (let iteration = 0; iteration < maxIterations; iteration++) {
-        const controller = new AbortController();
+      const controller = new AbortController();
 
-        // Step 1: Convert LaTeX → Markdown
-        const response = await fetch('/api/reverse-latex', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ latex: currentLatex }),
-          signal: controller.signal,
-        });
+      const response = await fetch('/api/reverse-latex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latex: latestLatexRef.current }),
+        signal: controller.signal,
+      });
 
-        if (!response.ok) throw new Error('Markdown 转换失败');
+      if (!response.ok) throw new Error('Markdown 转换失败');
 
-        let markdownText = '';
-        markdownText = await readSSEStream(response, () => {});
+      let markdownText = '';
+      markdownText = await readSSEStream(response, () => {});
 
-        setValidatedMarkdown(markdownText);
-        latestMarkdownRef.current = markdownText;
-
-        // Step 2: Verify by forward-converting Markdown → LaTeX
-        if (iteration < maxIterations - 1) {
-          const verifyResponse = await fetch('/api/latex', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ markdown: markdownText }),
-            signal: controller.signal,
-          });
-
-          if (!verifyResponse.ok) break;
-
-          let verifiedLatex = '';
-          verifiedLatex = await readSSEStream(verifyResponse, () => {});
-
-          // Step 3: Compare and decide if another iteration is needed
-          if (isSimilarEnough(currentLatex, verifiedLatex)) {
-            break;
-          }
-
-          // Not similar enough, use the verified latex for next iteration
-          currentLatex = verifiedLatex;
-          setLatexCode(verifiedLatex);
-          latestLatexRef.current = verifiedLatex;
-        }
-      }
+      setValidatedMarkdown(markdownText);
+      latestMarkdownRef.current = markdownText;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       const message = err instanceof Error ? err.message : '反向转换失败';
@@ -437,7 +333,7 @@ export default function Home() {
         reverseConvertMarkdown();
       }
     }
-  }, [isSimilarEnough]);
+  }, []);
 
   const handleMarkdownEdit = useCallback((value: string) => {
     setValidatedMarkdown(value);

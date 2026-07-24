@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
         role: "system" as const,
         content: `You are an expert LaTeX typesetter. Convert the given Markdown content (which may contain mathematical notation) into clean, compilable LaTeX code.
 
-Rules:
+CRITICAL RULE - Content Consistency:
+You MUST ensure the converted LaTeX content is COMPLETELY CONSISTENT with the original Markdown. Every piece of information, every math expression, every heading, every paragraph must be preserved exactly. Do NOT add, remove, or modify any content. The LaTeX is a faithful representation of the Markdown - nothing more, nothing less.
+
+Formatting Rules:
 1. Output a complete LaTeX document with proper preamble
 2. Include necessary packages:
    - amsmath, amssymb, amsthm for math
@@ -48,7 +51,7 @@ Rules:
       },
       {
         role: "user" as const,
-        content: `Convert the following Markdown content to a complete, compilable LaTeX document:\n\n${markdown}`,
+        content: `Convert the following Markdown content to a complete, compilable LaTeX document. Remember: ensure the LaTeX content is COMPLETELY CONSISTENT with the original Markdown - preserve all content exactly:\n\n${markdown}`,
       },
     ];
 

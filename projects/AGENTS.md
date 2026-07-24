@@ -43,10 +43,9 @@ src/
 ## 双向同步与验证
 - **编辑器 → LaTeX**: 编辑 Markdown 后，1.5s 防抖触发 `/api/latex` 转换
 - **LaTeX → 编辑器**: 编辑 LaTeX 后，1.5s 防抖触发 `/api/reverse-latex` 反向转换
-- **转换验证**: 每次转换后进行反向验证（最多 2 次迭代），确保结果一致性
-  - Markdown → LaTeX 后，反向转换回 Markdown 比对
-  - LaTeX → Markdown 后，正向转换回 LaTeX 比对
-  - 比对逻辑：数学表达式保留率 ≥ 80%、标题结构保留、长度比例 0.5-2.5 倍
+- **LLM 一致性保证**: 两个转换 API 的系统提示词均强调"确保转换后内容与原始内容完全一致"
+  - `/api/latex`: "ensure the LaTeX content is COMPLETELY CONSISTENT with the original Markdown"
+  - `/api/reverse-latex`: "ensure the Markdown content is COMPLETELY CONSISTENT with the original LaTeX"
 
 ## 开发命令
 - `pnpm dev` - 开发环境

@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
         role: "system" as const,
         content: `You are an expert at converting LaTeX documents back to Markdown format. Convert the given LaTeX content into clean, well-formatted Markdown.
 
-Rules:
+CRITICAL RULE - Content Consistency:
+You MUST ensure the converted Markdown content is COMPLETELY CONSISTENT with the original LaTeX. Every piece of information, every math expression, every heading, every paragraph must be preserved exactly. Do NOT add, remove, or modify any content. The Markdown is a faithful representation of the LaTeX - nothing more, nothing less.
+
+Conversion Rules:
 1. Convert LaTeX structure to Markdown:
    - \\section{Title} → # Title
    - \\subsection{Title} → ## Title
@@ -51,7 +54,7 @@ Rules:
       },
       {
         role: "user" as const,
-        content: `Convert the following LaTeX content to Markdown:\n\n${latex}`,
+        content: `Convert the following LaTeX content to Markdown. Remember: ensure the Markdown content is COMPLETELY CONSISTENT with the original LaTeX - preserve all content exactly:\n\n${latex}`,
       },
     ];
 
