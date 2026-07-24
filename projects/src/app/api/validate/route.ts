@@ -36,6 +36,14 @@ Your responsibilities:
 6. Preserve ALL original content - do not add or remove information
 7. Output ONLY the corrected markdown content, no explanations
 
+IMPORTANT - Multi-page/Multi-image Context Coherence:
+If the content comes from multiple pages or images that are contextually related:
+- Maintain logical coherence between different sections
+- Ensure formulas, theorems, and references flow naturally across pages
+- If a formula or sentence is split across pages, connect them properly
+- Maintain consistent notation and terminology throughout
+- Preserve the logical structure and argument flow of the original document
+
 Important: Maintain the original meaning and structure. Only fix clear errors.`,
       },
       {
