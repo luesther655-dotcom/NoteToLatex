@@ -449,7 +449,17 @@ export default function Home() {
   // Auto-save history when content changes (debounced)
   const saveHistoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!user || step !== "done" || !currentHistoryId) return;
+    console.log("Auto-save useEffect triggered:", { 
+      userId: user?.id, 
+      step, 
+      currentHistoryId, 
+      hasMarkdown: validatedMarkdown.length > 0,
+      hasLatex: latexCode.length > 0
+    });
+    if (!user || step !== "done" || !currentHistoryId) {
+      console.log("Auto-save skipped:", { hasUser: !!user, step, hasHistoryId: !!currentHistoryId });
+      return;
+    }
     if (saveHistoryTimeoutRef.current) {
       clearTimeout(saveHistoryTimeoutRef.current);
     }
@@ -474,6 +484,7 @@ export default function Home() {
       }
     }, 2000);
     return () => {
+      console.log("Auto-save cleanup called");
       if (saveHistoryTimeoutRef.current) {
         clearTimeout(saveHistoryTimeoutRef.current);
       }
