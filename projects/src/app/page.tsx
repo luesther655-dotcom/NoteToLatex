@@ -55,6 +55,25 @@ async function readSSEStream(
   return fullText;
 }
 
+// Clean markdown code block markers from LLM output
+function cleanMarkdownOutput(text: string): string {
+  let cleaned = text.trim();
+  
+  // Remove leading ```markdown or ```
+  if (cleaned.startsWith("```markdown")) {
+    cleaned = cleaned.slice(11);
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.slice(3);
+  }
+  
+  // Remove trailing ```
+  if (cleaned.endsWith("```")) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  
+  return cleaned.trim();
+}
+
 // Smart chunk splitting that avoids breaking LaTeX environments
 function splitTextSmartly(text: string, maxChunkSize: number): string[] {
   if (text.length <= maxChunkSize) {
@@ -355,6 +374,7 @@ export default function Home() {
         validatedText = await readSSEStream(validateResponse, (chunk) => {
           setValidateProgress((prev) => prev + chunk);
         });
+        validatedText = cleanMarkdownOutput(validatedText);
       } else {
         // Long text - process in chunks using smart splitting
         const chunks = splitTextSmartly(ocrText, CHUNK_SIZE);
@@ -375,7 +395,7 @@ export default function Home() {
           }
 
           const chunkText = await readSSEStream(validateResponse, () => {});
-          validatedText += (validatedText ? "\n\n" : "") + chunkText;
+          validatedText += (validatedText ? "\n\n" : "") + cleanMarkdownOutput(chunkText);
         }
       }
       setValidatedMarkdown(validatedText);

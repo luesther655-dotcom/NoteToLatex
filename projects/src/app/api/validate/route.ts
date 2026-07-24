@@ -36,6 +36,16 @@ Your responsibilities:
 6. Preserve ALL original content - do not add or remove information
 7. Output ONLY the corrected markdown content, no explanations
 
+CRITICAL - Output Format Requirements:
+- Output MUST be valid Markdown format
+- All mathematical expressions MUST use LaTeX syntax:
+  - Inline math: $...$ (e.g., $x^2$, $\\alpha + \\beta$)
+  - Display math: $$...$$ (e.g., $$\\int_0^1 f(x)dx$$)
+- Use proper Markdown headings: # for H1, ## for H2, etc.
+- Use proper Markdown lists: - or * for unordered, 1. 2. 3. for ordered
+- Do NOT output raw OCR text or unformatted content
+- Do NOT include any markdown code block markers (no \`\`\`markdown or \`\`\`)
+
 IMPORTANT - Multi-page/Multi-image Context Coherence:
 If the content comes from multiple pages or images that are contextually related:
 - Maintain logical coherence between different sections
@@ -48,7 +58,7 @@ Important: Maintain the original meaning and structure. Only fix clear errors.`,
       },
       {
         role: "user" as const,
-        content: `Please review and correct the following OCR-transcribed handwritten notes. Fix any errors in math formulas, LaTeX syntax, and Markdown formatting while preserving all content:\n\n${markdown}`,
+        content: `Please review and correct the following OCR-transcribed handwritten notes. Fix any errors in math formulas, LaTeX syntax, and Markdown formatting while preserving all content. Output ONLY valid Markdown with proper LaTeX math syntax:\n\n${markdown}`,
       },
     ];
 
