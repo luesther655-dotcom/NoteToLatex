@@ -132,7 +132,7 @@ export function ResultsPanel({
   const tabs: { key: Tab; label: string }[] = [
     { key: "preview", label: "预览" },
     { key: "latex", label: "LaTeX" },
-    { key: "editor", label: "编辑器" },
+    { key: "editor", label: "Markdown" },
   ];
 
   return (
