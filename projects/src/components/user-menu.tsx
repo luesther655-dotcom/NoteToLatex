@@ -1,14 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { User, Settings, HelpCircle, LogOut } from "lucide-react"
+import { User, Settings, HelpCircle, LogOut, Key } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface UserMenuProps {
   onOpenSettings: () => void
+  onOpenApiConfig: () => void
 }
 
-export function UserMenu({ onOpenSettings }: UserMenuProps) {
+export function UserMenu({ onOpenSettings, onOpenApiConfig }: UserMenuProps) {
   const { user, username, signOut } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -31,6 +32,11 @@ export function UserMenu({ onOpenSettings }: UserMenuProps) {
 
   const handleOpenSettings = () => {
     onOpenSettings()
+    setIsOpen(false)
+  }
+
+  const handleOpenApiConfig = () => {
+    onOpenApiConfig()
     setIsOpen(false)
   }
 
@@ -75,6 +81,13 @@ export function UserMenu({ onOpenSettings }: UserMenuProps) {
             >
               <Settings className="w-4 h-4" />
               个性设置
+            </button>
+            <button
+              onClick={handleOpenApiConfig}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+            >
+              <Key className="w-4 h-4" />
+              API 配置
             </button>
             <a
               href="https://github.com/your-repo/wiki"

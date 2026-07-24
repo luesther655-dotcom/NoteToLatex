@@ -9,6 +9,7 @@ import { AuthForm } from "@/components/auth-form";
 import { HistorySidebar, type ConversionHistoryItem } from "@/components/history-sidebar";
 import { UserMenu } from "@/components/user-menu";
 import { ProfileSettingsDialog } from "@/components/profile-settings-dialog";
+import { ApiConfigDialog } from "@/components/api-config-dialog";
 import { useAuth } from "@/lib/auth-context";
 import { pdfToImages } from "@/lib/pdf-utils";
 
@@ -72,6 +73,32 @@ function cleanMarkdownOutput(text: string): string {
   }
   
   return cleaned.trim();
+}
+
+// Convert File to base64
+async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1];
+      resolve({ base64, mimeType: file.type || "image/png" });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Get API config from localStorage
+function getApiConfig() {
+  if (typeof window === "undefined") return null;
+  const saved = localStorage.getItem("apiConfig");
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
 }
 
 // Smart chunk splitting that avoids breaking LaTeX environments
@@ -178,6 +205,7 @@ export default function Home() {
   const [historySaved, setHistorySaved] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showApiConfig, setShowApiConfig] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -281,14 +309,20 @@ export default function Home() {
 
       // Process files - send all at once for single image, or in batches for multiple
       let ocrText = "";
+      const apiConfig = getApiConfig();
+      const ocrApiConfig = apiConfig?.ocr || null;
+      
       if (allFilesToProcess.length === 1) {
         // Single image - send directly
-        const formData = new FormData();
-        formData.append("file", allFilesToProcess[0]);
+        const fileData = await fileToBase64(allFilesToProcess[0]);
 
         const ocrResponse = await fetch("/api/ocr", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            files: [fileData],
+            apiConfig: ocrApiConfig,
+          }),
           signal: controller.signal,
         });
 
@@ -320,14 +354,15 @@ export default function Home() {
           
           setOcrProgress(`正在处理第 ${startPage + 1}-${endPage} 页 (共 ${allFilesToProcess.length} 页)...`);
 
-          const formData = new FormData();
-          batchFiles.forEach((f, idx) => {
-            formData.append(`file`, f, `page_${startPage + idx + 1}.png`);
-          });
+          const batchFilesData = await Promise.all(batchFiles.map(f => fileToBase64(f)));
 
           const ocrResponse = await fetch("/api/ocr", {
             method: "POST",
-            body: formData,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              files: batchFilesData,
+              apiConfig: ocrApiConfig,
+            }),
             signal: controller.signal,
           });
 
@@ -356,13 +391,17 @@ export default function Home() {
 
       const CHUNK_SIZE = 3000; // characters per chunk
       let validatedText = "";
+      const validateApiConfig = apiConfig?.validate || null;
       
       if (ocrText.length <= CHUNK_SIZE) {
         // Short text - process all at once
         const validateResponse = await fetch("/api/validate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ markdown: ocrText }),
+          body: JSON.stringify({ 
+            markdown: ocrText,
+            apiConfig: validateApiConfig,
+          }),
           signal: controller.signal,
         });
 
@@ -385,7 +424,10 @@ export default function Home() {
           const validateResponse = await fetch("/api/validate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ markdown: chunks[i] }),
+            body: JSON.stringify({ 
+              markdown: chunks[i],
+              apiConfig: validateApiConfig,
+            }),
             signal: controller.signal,
           });
 
@@ -845,7 +887,10 @@ export default function Home() {
               </button>
             )}
             {user && (
-              <UserMenu onOpenSettings={() => setShowProfileSettings(true)} />
+              <UserMenu 
+                onOpenSettings={() => setShowProfileSettings(true)} 
+                onOpenApiConfig={() => setShowApiConfig(true)}
+              />
             )}
             <ThemeToggle />
           </div>
@@ -1026,6 +1071,12 @@ export default function Home() {
       <ProfileSettingsDialog
         isOpen={showProfileSettings}
         onClose={() => setShowProfileSettings(false)}
+      />
+
+      {/* API Config Dialog */}
+      <ApiConfigDialog
+        isOpen={showApiConfig}
+        onClose={() => setShowApiConfig(false)}
       />
     </div>
   );

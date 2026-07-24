@@ -5,7 +5,7 @@ export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
-    const { markdown } = await request.json();
+    const { markdown, apiConfig } = await request.json();
 
     if (!markdown || typeof markdown !== "string") {
       return new Response(
@@ -16,6 +16,15 @@ export async function POST(request: NextRequest) {
 
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
     const config = new Config();
+    
+    // Use user's API config if provided
+    if (apiConfig?.apiKey) {
+      config.apiKey = apiConfig.apiKey;
+    }
+    if (apiConfig?.baseUrl) {
+      config.baseURL = apiConfig.baseUrl;
+    }
+    
     const client = new LLMClient(config, customHeaders);
 
     const messages: Message[] = [
@@ -63,7 +72,7 @@ Important: Maintain the original meaning and structure. Only fix clear errors.`,
     ];
 
     const stream = client.stream(messages, {
-      model: "doubao-seed-2-0-pro-260215",
+      model: apiConfig?.model || "doubao-seed-2-0-pro-260215",
       temperature: 0.1,
     });
 

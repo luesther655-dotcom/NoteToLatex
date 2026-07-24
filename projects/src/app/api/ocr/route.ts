@@ -5,43 +5,40 @@ export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
+    const body = await request.json();
+    const { files, apiConfig } = body;
     
-    // Support multiple files
-    const files: File[] = [];
-    for (const [key, value] of formData.entries()) {
-      if (key === "file" && value instanceof File) {
-        files.push(value);
-      }
-    }
-
-    if (files.length === 0) {
+    if (!files || files.length === 0) {
       return new Response(
         JSON.stringify({ error: "No file provided" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Convert all files to base64 data URIs
-    const imageContents = await Promise.all(
-      files.map(async (file, index) => {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const base64 = buffer.toString("base64");
-        const mimeType = file.type || "image/png";
-        const dataUri = `data:${mimeType};base64,${base64}`;
-        
-        return {
-          type: "image_url" as const,
-          image_url: {
-            url: dataUri,
-            detail: "high" as const,
-          },
-        };
-      })
-    );
+    // Convert all files from base64 data URIs
+    const imageContents = files.map((fileData: { base64: string; mimeType: string }) => {
+      const dataUri = `data:${fileData.mimeType};base64,${fileData.base64}`;
+      
+      return {
+        type: "image_url" as const,
+        image_url: {
+          url: dataUri,
+          detail: "high" as const,
+        },
+      };
+    });
 
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
     const config = new Config();
+    
+    // Use user's API config if provided
+    if (apiConfig?.apiKey) {
+      config.apiKey = apiConfig.apiKey;
+    }
+    if (apiConfig?.baseUrl) {
+      config.baseURL = apiConfig.baseUrl;
+    }
+    
     const client = new LLMClient(config, customHeaders);
 
     // Build message content with text prompt and all images
@@ -84,7 +81,7 @@ Rules:
     ];
 
     const stream = client.stream(messages, {
-      model: "doubao-seed-2-0-pro-260215",
+      model: apiConfig?.model || "doubao-seed-2-0-pro-260215",
       temperature: 0.1,
     });
 
