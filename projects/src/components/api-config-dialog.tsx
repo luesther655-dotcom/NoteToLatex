@@ -230,6 +230,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
             <p>• 配置保存在本地浏览器中，仅对当前浏览器生效</p>
             <p>• 留空则使用系统默认配置</p>
             <p>• API Key 不会上传到服务器</p>
+            <p>• 正反向 LaTeX 转换与校验 LLM 共享同一模型配置</p>
           </div>
 
           {/* 消息提示 */}

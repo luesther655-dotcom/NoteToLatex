@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { type Message } from "coze-coding-dev-sdk";
-import { createLLMClient } from "@/lib/llm-config";
+import { streamDeepSeek } from "@/lib/llm-config";
 
 export const maxDuration = 120;
 
@@ -15,11 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { client, model } = createLLMClient(undefined, request.headers);
-
-    const messages: Message[] = [
+    const readable = await streamDeepSeek([
       {
-        role: "system" as const,
+        role: "system",
         content: `You are an expert at converting LaTeX documents back to Markdown format. Convert the given LaTeX content into clean, well-formatted Markdown.
 
 CRITICAL RULE - Content Consistency:
@@ -52,39 +49,10 @@ Conversion Rules:
 6. If the content appears to already be Markdown, return it as-is`,
       },
       {
-        role: "user" as const,
+        role: "user",
         content: `Convert the following LaTeX content to Markdown. Remember: ensure the Markdown content is COMPLETELY CONSISTENT with the original LaTeX - preserve all content exactly:\n\n${latex}`,
       },
-    ];
-
-    const stream = client.stream(messages, {
-      model,
-      temperature: 0.1,
-    });
-
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            if (chunk.content) {
-              const data = `data: ${JSON.stringify({ text: chunk.content.toString() })}\n\n`;
-              controller.enqueue(encoder.encode(data));
-            }
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : "Stream error";
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMsg })}\n\n`
-            )
-          );
-          controller.close();
-        }
-      },
-    });
+    ]);
 
     return new Response(readable, {
       headers: {

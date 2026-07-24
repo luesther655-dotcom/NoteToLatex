@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { type Message } from "coze-coding-dev-sdk";
-import { createLLMClient } from "@/lib/llm-config";
+import { streamDeepSeek } from "@/lib/llm-config";
 
 export const maxDuration = 120;
 
@@ -15,11 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { client, model } = createLLMClient(undefined, request.headers);
-
-    const messages: Message[] = [
+    const readable = await streamDeepSeek([
       {
-        role: "system" as const,
+        role: "system",
         content: `You are an expert LaTeX typesetter. Convert the given Markdown content (which may contain mathematical notation) into clean, compilable LaTeX code.
 
 CRITICAL RULE - Content Consistency:
@@ -49,39 +46,10 @@ Formatting Rules:
 6. Output ONLY the LaTeX code, no explanations`,
       },
       {
-        role: "user" as const,
+        role: "user",
         content: `Convert the following Markdown content to a complete, compilable LaTeX document. Remember: ensure the LaTeX content is COMPLETELY CONSISTENT with the original Markdown - preserve all content exactly:\n\n${markdown}`,
       },
-    ];
-
-    const stream = client.stream(messages, {
-      model,
-      temperature: 0.1,
-    });
-
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            if (chunk.content) {
-              const data = `data: ${JSON.stringify({ text: chunk.content.toString() })}\n\n`;
-              controller.enqueue(encoder.encode(data));
-            }
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : "Stream error";
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMsg })}\n\n`
-            )
-          );
-          controller.close();
-        }
-      },
-    });
+    ]);
 
     return new Response(readable, {
       headers: {
