@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NoteToLaTeX - 手写笔记转换器",
+  title: "NoteToLaTeX - Handwritten Notes Converter",
   description:
-    "使用 AI 驱动的 OCR 识别与校验，将手写数学笔记转换为可出版的 LaTeX 代码。",
+    "Convert handwritten math notes to publication-ready LaTeX code using AI-powered OCR.",
 };
 
 export default function RootLayout({
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

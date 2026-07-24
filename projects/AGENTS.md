@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## 项目概览
-NoteToLaTeX - 手写笔记转 LaTeX 应用。上传 PDF/图片形式的手写笔记，通过 AI OCR 识别、LLM 校验、LaTeX 转换，输出可编译的 LaTeX 代码。
+NoteToLaTeX - 手写笔记转 LaTeX 应用。上传 PDF/图片形式的手写笔记，通过 AI OCR 识别、LLM 校验、LaTeX 转换，输出可编译的 LaTeX 代码。支持用户登录和历史记录保存。
 
 ## 技术栈
 - **Framework**: Next.js 16 (App Router)
@@ -9,36 +9,50 @@ NoteToLaTeX - 手写笔记转 LaTeX 应用。上传 PDF/图片形式的手写笔
 - **UI**: shadcn/ui + Tailwind CSS 4
 - **AI**: coze-coding-dev-sdk (doubao-seed-2-0-pro-260215 多模态模型)
 - **渲染**: react-markdown + remark-math + rehype-katex
+- **数据库**: Supabase (PostgreSQL + Auth)
+- **ORM**: Drizzle ORM
 
 ## 目录结构
 ```
 src/
 ├── app/
 │   ├── api/
-│   │   ├── ocr/route.ts        # OCR 识别 API (多模态模型, SSE 流式)
-│   │   ├── validate/route.ts   # LLM 校验修正 API (SSE 流式)
-│   │   └── latex/route.ts      # Markdown→LaTeX 转换 API (SSE 流式)
-│   ├── globals.css              # 全局样式 + 学术主题色
-│   ├── layout.tsx               # 根布局 (ThemeProvider)
-│   └── page.tsx                 # 主页面 (上传→处理→结果)
+│   │   ├── ocr/route.ts           # OCR 识别 API (多模态模型, SSE 流式)
+│   │   ├── validate/route.ts      # LLM 校验修正 API (SSE 流式)
+│   │   ├── latex/route.ts         # Markdown→LaTeX 转换 API (SSE 流式)
+│   │   ├── reverse-latex/route.ts # LaTeX→Markdown 反向转换 API
+│   │   ├── auth/                  # 认证 API (login/register/me)
+│   │   └── history/route.ts       # 历史记录 CRUD API
+│   ├── globals.css                # 全局样式 + 学术主题色
+│   ├── layout.tsx                 # 根布局 (ThemeProvider + AuthProvider)
+│   └── page.tsx                   # 主页面 (上传→处理→结果)
 ├── components/
-│   ├── theme-provider.tsx       # 深浅主题 Context
-│   ├── theme-toggle.tsx         # 主题切换按钮
-│   ├── file-upload.tsx          # 拖拽上传组件
-│   ├── processing-pipeline.tsx  # 处理流水线可视化
-│   └── results-panel.tsx        # 结果面板 (Preview/LaTeX/Editor)
+│   ├── theme-provider.tsx         # 深浅主题 Context
+│   ├── theme-toggle.tsx           # 主题切换按钮
+│   ├── file-upload.tsx            # 拖拽上传组件
+│   ├── processing-pipeline.tsx    # 处理流水线可视化
+│   ├── results-panel.tsx          # 结果面板 (Preview/LaTeX/Editor)
+│   ├── auth-form.tsx              # 登录/注册表单
+│   └── history-sidebar.tsx        # 历史记录侧边栏
 ├── lib/
-│   ├── utils.ts                 # 通用工具
-│   └── pdf-utils.ts             # PDF→图片转换 (pdfjs-dist)
+│   ├── utils.ts                   # 通用工具
+│   ├── pdf-utils.ts               # PDF→图片转换 (pdfjs-dist)
+│   ├── supabase-client.ts         # Supabase 客户端 (服务端)
+│   ├── auth-context.tsx           # 认证 Context (客户端)
+│   └── conversion-history.ts      # 历史记录 CRUD 操作
+├── storage/database/shared/
+│   └── schema.ts                  # Drizzle 表定义
 ```
 
 ## 核心流程
-1. 用户上传 PDF/图片 → 前端拖拽上传
-2. PDF 文件先通过 pdfjs-dist 转为图片
-3. 图片发送到 `/api/ocr` → 多模态模型 OCR → 流式返回 Markdown
-4. Markdown 发送到 `/api/validate` → LLM 校验修正 → 流式返回
-5. 修正后 Markdown 发送到 `/api/latex` → LLM 转换为 LaTeX → 流式返回
-6. 结果展示: Markdown 预览 (KaTeX 渲染) / LaTeX 代码 / 在线编辑 / .tex 下载 / PDF 导出 / .md 下载
+1. 用户登录/注册（Supabase Auth）
+2. 用户上传 PDF/图片 → 前端拖拽上传
+3. PDF 文件先通过 pdfjs-dist 转为图片
+4. 图片发送到 `/api/ocr` → 多模态模型 OCR → 流式返回 Markdown
+5. Markdown 发送到 `/api/validate` → LLM 校验修正 → 流式返回
+6. 修正后 Markdown 发送到 `/api/latex` → LLM 转换为 LaTeX → 流式返回
+7. 结果自动保存到历史记录
+8. 结果展示: Markdown 预览 (KaTeX 渲染) / LaTeX 代码 / 在线编辑 / .tex 下载 / PDF 导出 / .md 下载
 
 ## 双向同步与验证
 - **编辑器 → LaTeX**: 编辑 Markdown 后，1.5s 防抖触发 `/api/latex` 转换
@@ -46,6 +60,19 @@ src/
 - **LLM 一致性保证**: 两个转换 API 的系统提示词均强调"确保转换后内容与原始内容完全一致"
   - `/api/latex`: "ensure the LaTeX content is COMPLETELY CONSISTENT with the original Markdown"
   - `/api/reverse-latex`: "ensure the Markdown content is COMPLETELY CONSISTENT with the original LaTeX"
+
+## 用户认证与历史记录
+- **认证**: Supabase Auth (邮箱/密码)
+- **历史记录表**: `conversion_history`
+  - `id`: 主键 (UUID)
+  - `user_id`: 用户 ID (关联 auth.users)
+  - `title`: 记录标题
+  - `source_image_url`: 源图片 URL
+  - `markdown_content`: Markdown 内容
+  - `latex_content`: LaTeX 内容
+  - `created_at` / `updated_at`: 时间戳
+- **RLS 策略**: 场景 D（用户私有数据），用户只能访问自己的记录
+- **自动保存**: 转换完成后自动保存，编辑内容时 2s 防抖自动更新
 
 ## 开发命令
 - `pnpm dev` - 开发环境

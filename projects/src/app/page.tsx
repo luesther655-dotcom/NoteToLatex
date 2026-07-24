@@ -5,7 +5,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { FileUpload } from "@/components/file-upload";
 import { ProcessingPipeline } from "@/components/processing-pipeline";
 import { ResultsPanel } from "@/components/results-panel";
+import { AuthForm } from "@/components/auth-form";
+import { HistorySidebar, type ConversionHistoryItem } from "@/components/history-sidebar";
+import { useAuth } from "@/lib/auth-context";
 import { pdfToImages } from "@/lib/pdf-utils";
+import { LogOut, User } from "lucide-react";
 
 type PipelineStep = "idle" | "uploading" | "ocr" | "validating" | "converting" | "done" | "error";
 
@@ -51,6 +55,7 @@ async function readSSEStream(
 }
 
 export default function Home() {
+  const { user, loading: authLoading, signOut, getToken } = useAuth();
   const [step, setStep] = useState<PipelineStep>("idle");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -62,6 +67,8 @@ export default function Home() {
   const [latexProgress, setLatexProgress] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isReverseConverting, setIsReverseConverting] = useState(false);
+  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
+  const [historySaved, setHistorySaved] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -80,6 +87,8 @@ export default function Home() {
     setErrorMsg("");
     setIsRegenerating(false);
     setIsReverseConverting(false);
+    setCurrentHistoryId(null);
+    setHistorySaved(false);
     // Clear debounce timers
     if (editorDebounceRef.current) {
       clearTimeout(editorDebounceRef.current);
@@ -212,6 +221,33 @@ export default function Home() {
       setLatexCode(latexText);
 
       setStep("done");
+
+      // Save to history if user is logged in
+      if (user) {
+        try {
+          const token = await getToken();
+          const response = await fetch("/api/history", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              title: uploadedFile?.name || "Untitled",
+              source_image_url: previewUrl,
+              markdown_content: validatedText,
+              latex_content: latexText,
+            }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setCurrentHistoryId(data.history?.id || null);
+            setHistorySaved(true);
+          }
+        } catch (e) {
+          console.error("Failed to save history:", e);
+        }
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       const message = err instanceof Error ? err.message : "处理失败";
@@ -386,6 +422,50 @@ export default function Home() {
     await regenerateLatex();
   }, [regenerateLatex]);
 
+  // Handle selecting a history item
+  const handleSelectHistory = useCallback((item: ConversionHistoryItem) => {
+    setStep("done");
+    setValidatedMarkdown(item.markdown_content);
+    setLatexCode(item.latex_content);
+    setCurrentHistoryId(item.id);
+    setHistorySaved(true);
+    setErrorMsg("");
+    setUploadedFile(null);
+    setPreviewUrl(null);
+  }, []);
+
+  // Auto-save history when content changes (debounced)
+  const saveHistoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!user || step !== "done" || !currentHistoryId) return;
+    if (saveHistoryTimeoutRef.current) {
+      clearTimeout(saveHistoryTimeoutRef.current);
+    }
+    saveHistoryTimeoutRef.current = setTimeout(async () => {
+      try {
+        const token = await getToken();
+        await fetch(`/api/history?id=${currentHistoryId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            markdown_content: validatedMarkdown,
+            latex_content: latexCode,
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to update history:", e);
+      }
+    }, 2000);
+    return () => {
+      if (saveHistoryTimeoutRef.current) {
+        clearTimeout(saveHistoryTimeoutRef.current);
+      }
+    };
+  }, [user, step, currentHistoryId, validatedMarkdown, latexCode, getToken]);
+
   const isProcessing = step !== "idle" && step !== "done" && step !== "error";
   const hasResults = step === "done" || (step === "error" && validatedMarkdown.length > 0);
 
@@ -425,6 +505,21 @@ export default function Home() {
                 重新开始
               </button>
             )}
+            {user && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {user.email}
+                </span>
+                <button
+                  onClick={signOut}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  title="退出登录"
+                >
+                  <LogOut className="h-3 w-3" />
+                </button>
+              </div>
+            )}
             <ThemeToggle />
           </div>
         </div>
@@ -432,80 +527,102 @@ export default function Home() {
 
       {/* Main content */}
       <main className="mx-auto max-w-7xl px-6 py-8">
-        {step === "idle" ? (
-          /* Upload State */
-          <div className="mx-auto max-w-xl">
-            <div className="mb-8 text-center">
+        {authLoading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B8956A]" />
+          </div>
+        ) : !user ? (
+          /* Not logged in - show auth form */
+          <div className="mx-auto max-w-md py-8">
+            <div className="mb-6 text-center">
               <h2 className="text-2xl font-serif font-bold tracking-tight">
-                手写笔记转 LaTeX
+                登录以保存您的转换记录
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                上传您的手写笔记（图片或 PDF 格式）。
-                <br />
-                AI 将识别、校验并转换为可出版的 LaTeX 代码。
+              <p className="mt-2 text-sm text-muted-foreground">
+                注册或登录以保存转换历史，随时查看和编辑之前的结果。
               </p>
             </div>
+            <AuthForm />
+          </div>
+        ) : step === "idle" ? (
+          /* Upload State with history sidebar */
+          <div className="flex gap-6">
+            <HistorySidebar onSelectHistory={handleSelectHistory} />
+            <div className="flex-1 mx-auto max-w-xl">
+              <div className="mb-8 text-center">
+                <h2 className="text-2xl font-serif font-bold tracking-tight">
+                  手写笔记转 LaTeX
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  上传您的手写笔记（图片或 PDF 格式）。
+                  <br />
+                  AI 将识别、校验并转换为可出版的 LaTeX 代码。
+                </p>
+              </div>
 
-            <FileUpload onFileSelect={processFile} isProcessing={false} />
+              <FileUpload onFileSelect={processFile} isProcessing={false} />
 
-            {/* Decorative math symbols */}
-            <div className="mt-8 flex items-center justify-center gap-6 text-muted-foreground/30 text-xs font-mono select-none">
-              <span>&int; f(x)dx</span>
-              <span>&sum; a_n x^n</span>
-              <span>&nabla;&times;F</span>
-              <span>&part;u/&part;t</span>
+              {/* Decorative math symbols */}
+              <div className="mt-8 flex items-center justify-center gap-6 text-muted-foreground/30 text-xs font-mono select-none">
+                <span>&int; f(x)dx</span>
+                <span>&sum; a_n x^n</span>
+                <span>&nabla;&times;F</span>
+                <span>&part;u/&part;t</span>
+              </div>
             </div>
           </div>
         ) : (
           /* Processing / Results State */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left panel: Upload preview + Pipeline */}
-            <div className="lg:col-span-4 space-y-4">
-              {/* File preview */}
-              {uploadedFile && (
-                <div className="border border-border rounded-lg bg-card overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Source
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {uploadedFile.name}
-                    </span>
-                  </div>
-                  {previewUrl ? (
-                    <div className="p-3">
-                      <img
-                        src={previewUrl}
-                        alt="已上传笔记"
-                        className="w-full rounded border border-border object-contain max-h-[300px]"
-                      />
+          <div className="flex gap-6">
+            <HistorySidebar onSelectHistory={handleSelectHistory} selectedId={currentHistoryId || undefined} />
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left panel: Upload preview + Pipeline */}
+              <div className="lg:col-span-4 space-y-4">
+                {/* File preview */}
+                {uploadedFile && (
+                  <div className="border border-border rounded-lg bg-card overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Source
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {uploadedFile.name}
+                      </span>
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-center p-8">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                          <polyline points="14 2 14 8 20 8" />
-                        </svg>
-                        PDF 文档
+                    {previewUrl ? (
+                      <div className="p-3">
+                        <img
+                          src={previewUrl}
+                          alt="已上传笔记"
+                          className="w-full rounded border border-border object-contain max-h-[300px]"
+                        />
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    ) : (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                          PDF 文档
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Pipeline */}
-              <div className="border border-border rounded-lg bg-card p-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                  处理流程
-                </h3>
-                <ProcessingPipeline
-                  currentStep={step}
-                  ocrProgress={ocrProgress}
-                  validateProgress={validateProgress}
-                  latexProgress={latexProgress}
-                />
-              </div>
+                {/* Pipeline */}
+                <div className="border border-border rounded-lg bg-card p-4">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+                    处理流程
+                  </h3>
+                  <ProcessingPipeline
+                    currentStep={step}
+                    ocrProgress={ocrProgress}
+                    validateProgress={validateProgress}
+                    latexProgress={latexProgress}
+                  />
+                </div>
 
               {/* Error message */}
               {errorMsg && (
@@ -521,44 +638,45 @@ export default function Home() {
                   </button>
                 </div>
               )}
-            </div>
+              </div>
 
-            {/* Right panel: Results */}
-            <div className="lg:col-span-8 min-h-[calc(100vh-8rem)]">
-              {hasResults ? (
-                <ResultsPanel
-                  markdown={validatedMarkdown}
-                  latex={latexCode}
-                  onMarkdownEdit={handleMarkdownEdit}
-                  onLatexEdit={handleLatexEdit}
-                  onRegenerateLatex={handleRegenerateLatex}
-                  isRegenerating={isRegenerating}
-                  isReverseConverting={isReverseConverting}
-                />
-              ) : (
-                <div className="flex h-full min-h-[400px] items-center justify-center border border-border rounded-lg bg-card">
-                  <div className="text-center">
-                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                      {isProcessing ? (
-                        <svg className="animate-spin text-[#B8956A]" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                        </svg>
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                          <polyline points="14 2 14 8 20 8" />
-                          <line x1="16" y1="13" x2="8" y2="13" />
-                          <line x1="16" y1="17" x2="8" y2="17" />
-                          <line x1="10" y1="9" x2="8" y2="9" />
-                        </svg>
-                      )}
+              {/* Right panel: Results */}
+              <div className="lg:col-span-8 min-h-[calc(100vh-8rem)]">
+                {hasResults ? (
+                  <ResultsPanel
+                    markdown={validatedMarkdown}
+                    latex={latexCode}
+                    onMarkdownEdit={handleMarkdownEdit}
+                    onLatexEdit={handleLatexEdit}
+                    onRegenerateLatex={handleRegenerateLatex}
+                    isRegenerating={isRegenerating}
+                    isReverseConverting={isReverseConverting}
+                  />
+                ) : (
+                  <div className="flex h-full min-h-[400px] items-center justify-center border border-border rounded-lg bg-card">
+                    <div className="text-center">
+                      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                        {isProcessing ? (
+                          <svg className="animate-spin text-[#B8956A]" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <line x1="10" y1="9" x2="8" y2="9" />
+                          </svg>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {isProcessing ? "正在处理您的笔记..." : "结果将在此处显示"}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {isProcessing ? "正在处理您的笔记..." : "结果将在此处显示"}
-                    </p>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
