@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 
-export function AuthForm() {
+export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +32,8 @@ export function AuthForm() {
         const { error } = await signIn(email, password);
         if (error) {
           setError(error);
+        } else {
+          onSuccess?.();
         }
       } else {
         const { error } = await signUp(email, password, username);
