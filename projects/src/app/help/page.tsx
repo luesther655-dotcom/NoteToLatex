@@ -134,7 +134,7 @@ export default function HelpPage() {
               </ol>
               <div className="bg-muted/30 rounded-lg p-4 my-4 border border-border">
                 <p className="text-sm text-muted-foreground mb-0">
-                  <strong className="text-foreground">💡 提示：</strong>无需注册即可使用全部转换功能。注册后可以保存和浏览历史记录，以及自定义 API 配置。
+                  <strong className="text-foreground">💡 提示：</strong>需要登录后才能使用转换功能。注册后可以保存和浏览历史记录，以及自定义 API 配置。
                 </p>
               </div>
             </section>
@@ -385,7 +385,7 @@ export default function HelpPage() {
             <section id="api-config">
               <h2>API 配置</h2>
               <p>
-                NoteToLaTeX 允许您自定义 OCR 识别和校验模型所使用的 AI 服务商和模型。
+                NoteToLaTeX 允许您自定义 OCR 识别和 LLM 模型所使用的 AI 服务商和模型。
                 登录后点击用户菜单中的「API 配置」即可打开配置面板。
               </p>
 
@@ -405,15 +405,21 @@ export default function HelpPage() {
                 </tbody>
               </table>
 
-              <h3>独立配置</h3>
+              <h3>模型绑定</h3>
               <p>
-                OCR 识别模型和校验 LLM 模型可以分别配置不同的服务商和 API Key，方便您根据需求
-                选择最合适的模型组合。
+                OCR 识别模型可以独立配置不同的服务商和 API Key。正反向 LaTeX 转换与校验 LLM 
+                <strong>共享同一模型配置</strong>，修改校验 LLM 时三者同步变化。
               </p>
 
               <h3>默认配置</h3>
               <p>
-                如果未配置 API，系统默认使用内置的扣子 AI 服务，无需任何设置即可使用全部转换功能。
+                未自定义 API 时，系统使用以下默认模型：
+              </p>
+              <ul className="list-disc pl-6 space-y-1">
+                <li><strong>OCR 识别</strong>：Coze 服务（内置）</li>
+                <li><strong>LaTeX 转换 / 校验 LLM / 反向 LaTeX</strong>：DeepSeek（deepseek-chat）</li>
+              </ul>
+              <p className="mt-2">
                 自定义 API 配置仅在需要更换模型或服务商时使用。
               </p>
 
