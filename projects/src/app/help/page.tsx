@@ -155,12 +155,16 @@ export default function HelpPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td>PNG</td><td>便携式网络图形</td><td>单张图片</td></tr>
-                  <tr><td>JPG / JPEG</td><td>JPEG 图像</td><td>单张图片</td></tr>
-                  <tr><td>WebP</td><td>WebP 图像格式</td><td>单张图片</td></tr>
-                  <tr><td>PDF</td><td>可移植文档格式</td><td>支持多页，自动拆分为图片</td></tr>
+                  <tr><td>PNG</td><td>便携式网络图形</td><td>计为 1 页</td></tr>
+                  <tr><td>JPG / JPEG</td><td>JPEG 图像</td><td>计为 1 页</td></tr>
+                  <tr><td>WebP</td><td>WebP 图像格式</td><td>计为 1 页</td></tr>
+                  <tr><td>PDF</td><td>可移植文档格式</td><td>按实际页数计算</td></tr>
                 </tbody>
               </table>
+
+              <p className="mt-3 text-sm text-muted-foreground">
+                单次转换上限：最多 <strong>200 页</strong>，文件总大小不超过 <strong>30MB</strong>。
+              </p>
 
               <p>您可以通过拖拽文件到上传区域，或点击上传区域从文件选择器中选取文件。</p>
 
@@ -443,8 +447,8 @@ export default function HelpPage() {
               <h3>Q：转换的准确率如何？</h3>
               <p>准确率取决于手写内容的清晰度。建议使用清晰的扫描件或拍摄良好的照片以获得最佳效果。对于复杂的数学公式，校验步骤会帮助修正识别错误。</p>
 
-              <h3>Q：有文件大小限制吗？</h3>
-              <p>建议单张图片不超过 10MB。对于较大的 PDF，系统会自动拆分为多页分批处理。</p>
+              <h3>Q：有文件大小和页数限制吗？</h3>
+              <p>单次转换上限为 <strong>200 页</strong>，文件总大小不超过 <strong>30MB</strong>。图片每张计为 1 页，PDF 按实际页数计算。如果超出限制，请分批上传。</p>
 
               <h3>Q：转换需要多长时间？</h3>
               <p>单张图片通常在几秒到几十秒内完成。处理时间取决于文件数量、页面内容和 AI 模型的响应速度。</p>

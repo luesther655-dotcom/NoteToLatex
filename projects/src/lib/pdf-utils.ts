@@ -3,6 +3,12 @@ import * as pdfjsLib from "pdfjs-dist";
 // Set worker source
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
+export async function getPdfPageCount(file: File): Promise<number> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  return pdf.numPages;
+}
+
 export async function pdfToImages(file: File): Promise<File[]> {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

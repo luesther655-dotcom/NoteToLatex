@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { X, FileImage, FileText, Upload, Camera, PenTool } from "lucide-react";
 import { CameraCapture } from "@/components/camera-capture";
 import { WritingPad } from "@/components/writing-pad";
+import { getPdfPageCount } from "@/lib/pdf-utils";
+import { toast } from "sonner";
+
+const MAX_TOTAL_SIZE_MB = 30;
+const MAX_TOTAL_PAGES = 200;
 
 interface FileUploadProps {
   onFilesSelect: (files: File[]) => void;
@@ -36,15 +41,57 @@ export function FileUpload({
   const [showWritingPad, setShowWritingPad] = useState(false);
 
   const validateAndAddFiles = useCallback(
-    (files: FileList | File[]) => {
-      const validFiles = Array.from(files).filter((f) =>
+    async (files: FileList | File[]) => {
+      const newFiles = Array.from(files);
+
+      // Check total size
+      const existingSize = uploadedFiles.reduce((s, f) => s + f.size, 0);
+      const newSize = newFiles.reduce((s, f) => s + f.size, 0);
+      const totalSizeMB = (existingSize + newSize) / (1024 * 1024);
+      if (totalSizeMB > MAX_TOTAL_SIZE_MB) {
+        toast.error(`文件总大小超过限制（最大 ${MAX_TOTAL_SIZE_MB}MB），当前约 ${totalSizeMB.toFixed(1)}MB`);
+        return;
+      }
+
+      // Filter valid types
+      const validFiles = newFiles.filter((f) =>
         VALID_TYPES.includes(f.type)
       );
+      if (validFiles.length === 0) {
+        toast.error("不支持的文件格式，请上传 PNG、JPG、WebP 或 PDF 文件");
+        return;
+      }
+
+      // Count pages: images = 1 page each, PDFs = parse actual pages
+      let existingPages = 0;
+      for (const f of uploadedFiles) {
+        if (f.type === "application/pdf") {
+          existingPages += await getPdfPageCount(f).catch(() => 1);
+        } else {
+          existingPages += 1;
+        }
+      }
+
+      let newPages = 0;
+      for (const f of validFiles) {
+        if (f.type === "application/pdf") {
+          newPages += await getPdfPageCount(f).catch(() => 1);
+        } else {
+          newPages += 1;
+        }
+      }
+
+      const totalPages = existingPages + newPages;
+      if (totalPages > MAX_TOTAL_PAGES) {
+        toast.error(`总页数超过限制（最大 ${MAX_TOTAL_PAGES} 页），当前约 ${totalPages} 页`);
+        return;
+      }
+
       if (validFiles.length > 0) {
         onFilesSelect(validFiles);
       }
     },
-    [onFilesSelect]
+    [onFilesSelect, uploadedFiles]
   );
 
   const handleCameraCapture = useCallback(
