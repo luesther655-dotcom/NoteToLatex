@@ -28,9 +28,9 @@ const defaultConfig: ApiConfig = {
   },
   validate: {
     provider: "coze",
-    model: "doubao-seed-2-0-pro-260215",
-    apiKey: "",
-    baseUrl: "",
+    model: process.env.NEXT_PUBLIC_DEFAULT_LLM_MODEL || "doubao-seed-2-0-pro-260215",
+    apiKey: process.env.NEXT_PUBLIC_DEFAULT_LLM_API_KEY || "",
+    baseUrl: process.env.NEXT_PUBLIC_DEFAULT_LLM_BASE_URL || "",
   },
 }
 
