@@ -153,42 +153,32 @@ export default function Home() {
         setPreviewUrl(url);
       }
 
-      // Process all files (for multi-page PDFs)
-      let combinedOcrText = "";
-      for (let i = 0; i < filesToProcess.length; i++) {
-        const currentFile = filesToProcess[i];
-        if (filesToProcess.length > 1) {
-          setOcrProgress(`正在处理第 ${i + 1}/${filesToProcess.length} 页...`);
-        }
-
-        const formData = new FormData();
-        formData.append("file", currentFile);
-
-        const ocrResponse = await fetch("/api/ocr", {
-          method: "POST",
-          body: formData,
-          signal: controller.signal,
-        });
-
-        if (!ocrResponse.ok) {
-          const errData = await ocrResponse.json();
-          throw new Error(errData.error || "OCR 识别失败");
-        }
-
-        let pageText = "";
-        pageText = await readSSEStream(ocrResponse, (chunk) => {
-          setOcrProgress((prev) => {
-            // Only show streaming text for single-page content
-            if (filesToProcess.length === 1) return prev + chunk;
-            return prev;
-          });
-        });
-        combinedOcrText += pageText;
-        if (i < filesToProcess.length - 1) {
-          combinedOcrText += "\n\n";
-        }
+      // Send all files at once for OCR (multi-page PDFs will be processed together)
+      const formData = new FormData();
+      for (const f of filesToProcess) {
+        formData.append("file", f);
       }
-      setOcrMarkdown(combinedOcrText);
+
+      if (filesToProcess.length > 1) {
+        setOcrProgress(`正在识别 ${filesToProcess.length} 页内容...`);
+      }
+
+      const ocrResponse = await fetch("/api/ocr", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+      });
+
+      if (!ocrResponse.ok) {
+        const errData = await ocrResponse.json();
+        throw new Error(errData.error || "OCR 识别失败");
+      }
+
+      let ocrText = "";
+      ocrText = await readSSEStream(ocrResponse, (chunk) => {
+        setOcrProgress((prev) => prev + chunk);
+      });
+      setOcrMarkdown(ocrText);
 
       // Step 2: Validate
       setStep("validating");
@@ -197,7 +187,7 @@ export default function Home() {
       const validateResponse = await fetch("/api/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: combinedOcrText }),
+        body: JSON.stringify({ markdown: ocrText }),
         signal: controller.signal,
       });
 
