@@ -15,15 +15,10 @@ export async function POST(request: NextRequest) {
     }
 
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const config = new Config();
-    
-    // Use user's API config if provided
-    if (apiConfig?.apiKey) {
-      config.apiKey = apiConfig.apiKey;
-    }
-    if (apiConfig?.baseUrl) {
-      config.baseURL = apiConfig.baseUrl;
-    }
+    const config = new Config({
+      apiKey: apiConfig?.apiKey,
+      baseUrl: apiConfig?.baseUrl,
+    });
     
     const client = new LLMClient(config, customHeaders);
 
