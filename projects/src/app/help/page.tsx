@@ -2,7 +2,7 @@
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, ExternalLink, Download } from "lucide-react";
 
 const sections = [
   { id: "overview", title: "概述" },
@@ -59,6 +59,14 @@ export default function HelpPage() {
             NoteToLaTeX 是一款利用 AI 技术将手写笔记（图片或 PDF 格式）自动转换为出版级 LaTeX 代码的在线工具。
             本帮助文档将引导您了解全部功能与使用方法。
           </p>
+          <a
+            href="/evaluation-guide.pdf"
+            download
+            className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-md bg-[#B8956A] text-white text-sm font-medium hover:bg-[#A6845C] transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            下载技术文档 (PDF)
+          </a>
         </div>
 
         <div className="flex gap-12">
