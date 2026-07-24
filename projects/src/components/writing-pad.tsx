@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Eraser, Pen, Undo2, Check } from "lucide-react";
+import { X, Eraser, Pen, Undo2, Check, Trash2 } from "lucide-react";
 
 interface WritingPadProps {
   onSubmit: (file: File) => void;
@@ -28,7 +28,12 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
   const [penColor, setPenColor] = useState("#000000");
   const [penWidth, setPenWidth] = useState(3);
+  const [isEraser, setIsEraser] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 500 });
+
+  // Pen cursor SVG as data URL
+  const penCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/%3E%3Cpath d='m15 5 4 4'/%3E%3C/svg%3E") 2 22, auto`;
+  const eraserCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21'/%3E%3Cpath d='M22 21H7'/%3E%3Cpath d='m5 11 9 9'/%3E%3C/svg%3E") 10 10, auto`;
 
   // Resize canvas to fit container
   useEffect(() => {
@@ -64,7 +69,13 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
       if (stroke.points.length < 2) return;
 
       ctx.beginPath();
-      ctx.strokeStyle = stroke.color;
+      if (stroke.color === "eraser") {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = stroke.color;
+      }
       ctx.lineWidth = stroke.width;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -81,7 +92,13 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
     // Draw current stroke
     if (currentStroke.length >= 2) {
       ctx.beginPath();
-      ctx.strokeStyle = penColor;
+      if (isEraser) {
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = penColor;
+      }
       ctx.lineWidth = penWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -92,7 +109,9 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
       }
       ctx.stroke();
     }
-  }, [strokes, currentStroke, penColor, penWidth, canvasSize]);
+    // Reset composite operation
+    ctx.globalCompositeOperation = "source-over";
+  }, [strokes, currentStroke, penColor, penWidth, canvasSize, isEraser]);
 
   const getPoint = useCallback(
     (e: React.MouseEvent | React.TouchEvent): Point => {
@@ -147,11 +166,11 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
     if (currentStroke.length >= 2) {
       setStrokes((prev) => [
         ...prev,
-        { points: currentStroke, color: penColor, width: penWidth },
+        { points: currentStroke, color: isEraser ? "eraser" : penColor, width: penWidth },
       ]);
     }
     setCurrentStroke([]);
-  }, [isDrawing, currentStroke, penColor, penWidth]);
+  }, [isDrawing, currentStroke, penColor, penWidth, isEraser]);
 
   const handleUndo = useCallback(() => {
     setStrokes((prev) => prev.slice(0, -1));
@@ -206,7 +225,8 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
             ref={canvasRef}
             width={canvasSize.width}
             height={canvasSize.height}
-            className="w-full touch-none cursor-crosshair"
+            className="w-full touch-none"
+            style={{ cursor: isEraser ? eraserCursor : penCursor }}
             onMouseDown={handleStart}
             onMouseMove={handleMove}
             onMouseUp={handleEnd}
@@ -228,13 +248,35 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
         <div className="flex items-center justify-between p-4 bg-muted/30 gap-4 flex-wrap">
           {/* Pen settings */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Pen className="h-4 w-4 text-muted-foreground" />
+            {/* Pen/Eraser toggle */}
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+              <Button
+                variant={isEraser ? "ghost" : "secondary"}
+                size="sm"
+                onClick={() => setIsEraser(false)}
+                className="h-8 px-3 gap-1.5"
+              >
+                <Pen className="h-4 w-4" />
+                画笔
+              </Button>
+              <Button
+                variant={isEraser ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setIsEraser(true)}
+                className="h-8 px-3 gap-1.5"
+              >
+                <Eraser className="h-4 w-4" />
+                橡皮擦
+              </Button>
+            </div>
+            {/* Color picker - disabled when eraser is active */}
+            <div className="flex items-center gap-2 opacity-100 transition-opacity" style={{ opacity: isEraser ? 0.4 : 1 }}>
               <input
                 type="color"
                 value={penColor}
                 onChange={(e) => setPenColor(e.target.value)}
-                className="h-8 w-8 rounded cursor-pointer border border-border"
+                disabled={isEraser}
+                className="h-8 w-8 rounded cursor-pointer border border-border disabled:cursor-not-allowed"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -269,7 +311,7 @@ export function WritingPad({ onSubmit, onClose }: WritingPadProps) {
               disabled={!hasContent}
               className="gap-1.5"
             >
-              <Eraser className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
               清空
             </Button>
             <Button
