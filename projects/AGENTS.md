@@ -115,3 +115,4 @@ src/
 - 部署脚本使用 `DEPLOY_RUN_PORT` 环境变量支持端口覆盖，默认 5000
 - 禁止使用 `9000` 端口（系统保留）
 - Node.js 项目只允许使用 `pnpm`，禁止 `npm` 或 `yarn`
+- **Supabase 配置缺失降级**: 当 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 未配置时，`auth-context.tsx` 会降级处理（返回 null），页面可正常显示但认证功能不可用。需在平台配置 Supabase 集成后才能使用登录/注册/历史记录功能。

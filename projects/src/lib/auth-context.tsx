@@ -25,7 +25,8 @@ function getSupabaseBrowserClient() {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   
   if (!url || !anonKey) {
-    throw new Error('Missing Supabase environment variables');
+    console.warn('Supabase environment variables not configured. Auth features will be disabled.');
+    return null;
   }
   
   supabaseClient = createClient(url, anonKey, {
@@ -45,6 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     
+    if (!supabase) {
+      // Supabase not configured, disable auth features
+      setLoading(false);
+      return;
+    }
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -59,12 +66,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) return { error: '认证服务未配置' };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, username: string) => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) return { error: '认证服务未配置' };
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -79,18 +88,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
   }, []);
 
   const getToken = useCallback(async () => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) return null;
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ?? null;
   }, []);
 
   const updateProfile = useCallback(async (updates: { username?: string; avatarUrl?: string }) => {
     const supabase = getSupabaseBrowserClient();
+    if (!supabase) return { success: false, error: '认证服务未配置' };
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     
     if (!currentUser) {
