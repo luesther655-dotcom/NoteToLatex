@@ -1,282 +1,189 @@
-<div align="center">
-  <br />
-  <div>
-    <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="80" height="80" rx="16" fill="#B8956A"/>
-      <path d="M20 30V24h40v6" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M38 56h4" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M40 24v32" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </div>
-  <h1 align="center">NoteToLaTeX</h1>
-  <p align="center">
-    Convert handwritten math notes to publication-ready LaTeX code using AI-powered OCR
-  </p>
+# NoteToLaTeX
 
-  <p align="center">
-    <a href="#features">Features</a> ·
-    <a href="#demo">Demo</a> ·
-    <a href="#tech-stack">Tech Stack</a> ·
-    <a href="#getting-started">Getting Started</a> ·
-    <a href="#project-structure">Structure</a> ·
-    <a href="#api-routes">API</a> ·
-    <a href="#deployment">Deployment</a>
-  </p>
+> 手写笔记转 LaTeX — 将手写数学笔记自动转换为出版级 LaTeX 代码
 
-  <p align="center">
-    <img src="https://img.shields.io/badge/Next.js-16.1.1-black?style=flat-square&logo=next.js" alt="Next.js" />
-    <img src="https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript" alt="TypeScript" />
-    <img src="https://img.shields.io/badge/Supabase-3FCF8E?style=flat-square&logo=supabase" alt="Supabase" />
-    <img src="https://img.shields.io/badge/shadcn/ui-000?style=flat-square&logo=shadcnui" alt="shadcn/ui" />
-    <img src="https://img.shields.io/badge/pnpm-9.0-F69220?style=flat-square&logo=pnpm" alt="pnpm" />
-  </p>
-</div>
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![React](https://img.shields.io/badge/React-19-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6)
+![License](https://img.shields.io/badge/License-MIT-green)
+![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
 ---
 
-## Overview
+## 📖 简介
 
-**NoteToLaTeX** is a full-stack web application that leverages AI to convert handwritten mathematical notes from images or PDFs into professional LaTeX code. It provides an intuitive three-stage pipeline—OCR recognition, validation, and LaTeX conversion—along with bidirectional editing, conversion history, and multiple export options.
+**NoteToLaTeX** 是一款基于 AI 的全栈 Web 应用，利用大语言模型的 OCR 识别与 LaTeX 编排能力，将手写数学笔记（图片或 PDF）自动转换为可编译的 LaTeX 代码，大幅降低从手写到出版文档的人工成本。
 
-Built with Next.js 16 (App Router), shadcn/ui, Tailwind CSS v4, Supabase (auth + database), and the Coze AI SDK.
+适用场景：学术研究、教育教学、论文写作、数学竞赛、知识管理。
 
-## Features
+---
 
-### Core Pipeline
-- **📄 Multi-format Input** — Upload PNG, JPG, WebP, or PDF files (supports drag & drop, camera capture, and an on-screen writing pad)
-- **🤖 AI OCR** — Transcribes handwritten content (including complex mathematical formulas) into Markdown
-- **✅ Smart Validation** — Automatically detects and fixes OCR errors, ensuring formula accuracy and structural integrity
-- **📝 LaTeX Conversion** — Generates complete, compilable LaTeX documents with proper preamble, sectioning, and math environments
-- **📊 Streaming Progress** — Real-time SSE streaming shows progress across all pipeline stages
+## ✨ 核心功能
 
-### Editing & Export
-- **🔄 Bidirectional Sync** — Edit Markdown to auto-regenerate LaTeX, or edit LaTeX to reverse-convert to Markdown
-- **📥 Multiple Export Formats** — Export as PDF (print), .tex file, .md file, or copy to clipboard
-- **✏️ Smart Chunking** — Long documents are intelligently split at paragraph/environment boundaries for reliable AI processing
+| 功能 | 说明 |
+|------|------|
+| 🖼️ **手写 OCR 识别** | 支持中文/英文/混合手写，对数学符号和公式专项优化 |
+| ✅ **智能校验** | 自动检测并修正公式错误和 LaTeX 语法问题 |
+| 🔄 **LaTeX 转换** | 将识别结果转换为标准 LaTeX 代码，可直接编译 |
+| 🔁 **双向编辑同步** | 编辑 Markdown 自动重新生成 LaTeX，反之亦然 |
+| 📤 **多格式导出** | 导出 PDF / .tex / .md / 复制到剪贴板 |
+| 📜 **转换历史** | 登录后自动保存，支持浏览/重命名/删除 |
+| 🔧 **自定义 API** | 可独立配置 OCR 和校验模型的 API Key |
+| 🌙 **多主题** | 亮色/暗色模式，针对数学公式阅读优化 |
 
-### User System
-- **🔐 Supabase Auth** — Email/password registration and login
-- **📚 Conversion History** — Save, browse, rename, and reload past conversions
-- **👤 Profile Settings** — Custom username and avatar
+---
 
-### Customization
-- **⚙️ API Configuration** — Customize AI provider, model, API key, and base URL (stored locally, never sent to server)
-- **🌓 Theme Toggle** — Light/dark mode with automatic preference saving
+## 🖥 在线体验
 
-### Alternative Input Methods
-- **📸 Camera Capture** — Take a photo of handwritten notes directly in the browser
-- **✍️ Writing Pad** — On-screen canvas for handwriting with color/width controls, undo, and eraser
+- **应用地址：** 访问平台提供的部署 URL
+- **帮助文档：** 点击应用顶栏「帮助」按钮或访问 `/help`
 
-## Tech Stack
+---
 
-| Layer | Technology |
-|-------|-----------|
-| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) |
-| **UI Components** | [shadcn/ui](https://ui.shadcn.com/) (Radix UI primitives) |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
-| **Authentication** | [Supabase Auth](https://supabase.com/auth) |
-| **Database** | [Supabase PostgreSQL](https://supabase.com/database) |
-| **AI Engine** | [Coze SDK](https://www.coze.com/) / OpenAI-compatible LLM APIs |
-| **Math Rendering** | [KaTeX](https://katex.org/) via rehype-katex |
-| **Language** | TypeScript 5.x |
-| **Package Manager** | pnpm 9+ |
+## 🚀 快速开始
 
-## Demo
+### 环境要求
 
-| | |
-|---|---|
-| **Upload handwritten notes** → | Drag & drop images or PDFs |
-| **AI processes automatically** → | OCR → Validate → Convert to LaTeX |
-| **Review & edit** → | Toggle between rendered preview / LaTeX / Markdown |
-| **Export** → | PDF, .tex, .md, or clipboard |
+- Node.js 24+
+- pnpm 9+
+- 浏览器：Chrome 90+ / Edge 90+ / Firefox 90+
 
-> **No login required** for basic conversion. Create an account to save and manage your conversion history.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js >= 20
-- pnpm >= 9.0
-
-### 1. Install Dependencies
+### 安装与运行
 
 ```bash
+# 克隆仓库
+git clone https://github.com/luesther655-dotcom/NoteToLatex.git
+cd NoteToLatex/projects
+
+# 安装依赖
 pnpm install
+
+# 配置环境变量
+cp .env.example .env.local
+# 编辑 .env.local 填入 Supabase 凭据
+
+# 启动开发服务器
+pnpm dev
+
+# 访问 http://localhost:5000
 ```
 
-### 2. Configure Environment Variables
-
-Create `projects/.env.local`:
-
-```env
-# Supabase (Auth + Database)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# Default LLM Configuration (optional — user can override in-app)
-DEFAULT_LLM_API_KEY=your-api-key
-DEFAULT_LLM_BASE_URL=https://api.coze.cn/v3
-DEFAULT_LLM_MODEL=doubao-seed-2-0-pro-260215
-```
-
-### 3. Run Development Server
+### 构建生产版本
 
 ```bash
-coze dev
-# or directly:
-bash ./scripts/dev.sh
+pnpm build
+pnpm start
 ```
 
-Open [http://localhost:5000](http://localhost:5000) in your browser.
+---
 
-### 4. Build for Production
+## 🏗 技术栈
 
-```bash
-coze build
-coze start
+| 层次 | 技术选型 |
+|------|----------|
+| 前端框架 | Next.js 16 (App Router) + React 19 |
+| UI 组件 | shadcn/ui (Radix UI) |
+| 样式方案 | Tailwind CSS v4 |
+| 数学渲染 | KaTeX（rehype-katex） |
+| 认证系统 | Supabase Auth（邮箱/密码） |
+| 数据库 | Supabase PostgreSQL（Drizzle ORM） |
+| AI 引擎 | coze-coding-dev-sdk（豆包模型） |
+| 包管理器 | pnpm 9+ |
+| 语言 | TypeScript 5.x |
+
+### AI 处理流程
+
+```
+用户上传图片/PDF
+       │
+       ▼
+   PDF → 图片分页 (pdf.js)
+       │
+       ▼
+   OCR 识别 (LLM) ───→ Markdown
+       │
+       ▼
+   校验修正 (LLM) ───→ 纠正公式/语法错误
+       │
+       ▼
+   LaTeX 转换 (LLM) ──→ LaTeX 代码
+       │
+       ▼
+   结果展示 / 导出
 ```
 
-## Project Structure
+---
+
+## 📁 项目结构
 
 ```
 projects/
+├── public/                    # 静态资源
 ├── src/
-│   ├── app/                        # Next.js App Router
-│   │   ├── api/
-│   │   │   ├── auth/               # Auth endpoints (register, login, me)
-│   │   │   ├── config/supabase/    # Supabase runtime config
-│   │   │   ├── history/            # Conversion history CRUD
-│   │   │   ├── latex/              # Markdown → LaTeX conversion
-│   │   │   ├── ocr/                # OCR image recognition
-│   │   │   ├── reverse-latex/      # LaTeX → Markdown conversion
-│   │   │   └── validate/           # OCR result validation
-│   │   ├── help/                   # Help/documentation page
-│   │   ├── layout.tsx              # Root layout (ThemeProvider, AuthProvider)
-│   │   ├── page.tsx                # Main application page
-│   │   └── globals.css             # Global styles & theme tokens
+│   ├── app/
+│   │   ├── api/              # API 路由（OCR/校验/LaTeX/历史/认证）
+│   │   ├── help/             # 帮助文档页面
+│   │   ├── globals.css       # 全局样式与主题变量
+│   │   ├── layout.tsx        # 根布局
+│   │   └── page.tsx          # 主页面（单页应用）
 │   ├── components/
-│   │   ├── ui/                     # shadcn/ui base components
-│   │   ├── auth-form.tsx           # Login/register form
-│   │   ├── api-config-dialog.tsx   # Custom API configuration dialog
-│   │   ├── camera-capture.tsx      # Browser camera capture
-│   │   ├── file-upload.tsx         # Drag & drop file upload area
-│   │   ├── history-sidebar.tsx     # Conversion history sidebar
-│   │   ├── processing-pipeline.tsx # Pipeline step indicator
-│   │   ├── profile-settings-dialog.tsx  # User profile settings
-│   │   ├── results-panel.tsx       # Three-tab result viewer/editor
-│   │   ├── theme-provider.tsx      # Theme provider (next-themes)
-│   │   ├── theme-toggle.tsx        # Theme toggle button
-│   │   ├── user-menu.tsx           # User dropdown menu
-│   │   └── writing-pad.tsx         # On-screen handwriting canvas
-│   ├── lib/
-│   │   ├── auth-context.tsx        # React context for authentication
-│   │   ├── conversion-history.ts   # History data types
-│   │   ├── llm-config.ts          # LLM client factory (Coze SDK)
-│   │   ├── pdf-utils.ts           # PDF-to-image conversion
-│   │   ├── supabase-client.ts     # Supabase server client
-│   │   └── utils.ts               # Utility functions (cn, etc.)
-│   └── hooks/
-│       └── use-mobile.ts          # Mobile detection hook
-├── server/                         # Custom server (optional)
-├── scripts/                        # Build & deployment scripts
-├── public/                         # Static assets
-├── AGENTS.md                       # AI agent configuration
-├── DESIGN.md                       # Design system notes
-├── package.json
-└── .env.local                      # Environment variables (gitignored)
+│   │   ├── ui/               # shadcn/ui 基础组件
+│   │   ├── file-upload.tsx   # 文件上传组件
+│   │   ├── processing-pipeline.tsx  # 处理流程可视化
+│   │   ├── results-panel.tsx        # 结果面板（三标签）
+│   │   ├── history-sidebar.tsx      # 历史记录侧边栏
+│   │   ├── auth-form.tsx            # 登录/注册表单
+│   │   ├── user-menu.tsx            # 用户菜单
+│   │   ├── api-config-dialog.tsx    # API 配置弹窗
+│   │   └── profile-settings-dialog.tsx  # 个人设置弹窗
+│   ├── lib/                  # 工具库（auth/pdf/utils）
+│   └── hooks/                # 自定义 hooks
+├── scripts/                  # 构建/启动脚本
+├── .env.local                # 环境变量（已 gitignore）
+└── package.json
 ```
 
-## API Routes
+---
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/ocr` | POST | OCR image recognition — accepts base64-encoded images, returns SSE stream |
-| `/api/validate` | POST | Validates and corrects OCR output — returns SSE stream |
-| `/api/latex` | POST | Converts Markdown to complete LaTeX document — returns SSE stream |
-| `/api/reverse-latex` | POST | Converts LaTeX back to Markdown — returns SSE stream |
-| `/api/auth/register` | POST | User registration (email, password, username) |
-| `/api/auth/login` | POST | User login |
-| `/api/auth/me` | GET | Get current authenticated user |
-| `/api/history` | GET | List conversion history (authenticated) |
-| `/api/history` | POST | Save new conversion record (authenticated) |
-| `/api/history` | PUT | Update conversion record (authenticated, `?id=`) |
-| `/api/history` | DELETE | Delete conversion record (authenticated, `?id=`) |
-| `/api/config/supabase` | GET | Get Supabase runtime configuration |
+## 📋 环境变量
 
-All AI endpoints use **Server-Sent Events (SSE)** streaming:
+创建 `projects/.env.local`：
 
-```
-data: {"text": "streamed content chunk..."}
-data: {"text": "more content..."}
-data: [DONE]
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-## Key Design Decisions
+> 注册 Supabase：https://supabase.com → 创建项目 → 在 Settings → API 中获取 URL 和 anon key
 
-### Smart Chunk Splitting
-Long documents are processed in chunks using `splitTextSmartly()` which respects LaTeX environment boundaries (`\begin{}...\end{}`) and display math delimiters (`$$...$$`), avoiding broken output.
+---
 
-### Bidirectional Editing
-The Markdown editor and LaTeX editor are kept in sync via debounced auto-conversion. Editing Markdown triggers LaTeX regeneration (and vice versa), with a 1.5-second debounce to prevent excessive API calls.
+## 🤝 参与贡献
 
-### API Config Flexibility
-Users can configure separate AI providers/models for the OCR and validation stages. Configuration is stored in browser localStorage and never sent to the server, preserving API key privacy.
+欢迎提交 Issue 和 PR！
 
-### Unauthenticated Access
-The core conversion pipeline works without login. Authentication is only required for history persistence and profile management.
+1. Fork 本仓库
+2. 创建您的特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交您的更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 创建一个 Pull Request
 
-## Deployment
+---
 
-### Using Coze CLI
+## 📄 项目文档
 
-```bash
-coze build    # Build production bundle
-coze start    # Start production server
-```
+- [📖 帮助文档](projects/src/app/help/page.tsx) — 完整使用指南
+- [📘 作品使用手册 (PDF)](public/evaluation-guide.pdf) — 评审专用手册
+- [🎨 设计规范](projects/DESIGN.md) — 视觉与品牌设计文档
 
-### Manual Deployment
+---
 
-1. Build: `pnpm build` (or `bash ./scripts/build.sh`)
-2. Start: `pnpm start` (or `bash ./scripts/start.sh`)
+## 📜 许可证
 
-### Environment Variables
-
-Required for production:
-- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anonymous key
-- `DEFAULT_LLM_API_KEY` — Default LLM API key (server-side only)
-- `DEFAULT_LLM_BASE_URL` — Default LLM base URL
-- `DEFAULT_LLM_MODEL` — Default LLM model name
-
-## Development
-
-```bash
-# Lint & type check
-pnpm lint
-pnpm ts-check
-
-# Validate all (lint + types + style)
-pnpm validate
-
-# Use shadcn to add new UI components
-pnpm dlx shadcn add button
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+本项目基于 MIT 许可证开源。
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for the mathematical writing community</sub>
+  <sub>Built with ❤️ for the competition</sub>
 </div>

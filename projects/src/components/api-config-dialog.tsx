@@ -28,13 +28,13 @@ const defaultConfig: ApiConfig = {
     provider: "coze",
     model: "doubao-seed-2-0-pro-260215",
     apiKey: "",
-    baseUrl: "https://api.coze.cn/v3",
+    baseUrl: "",
   },
   validate: {
     provider: "coze",
     model: "doubao-seed-2-0-pro-260215",
     apiKey: "",
-    baseUrl: "https://api.coze.cn/v3",
+    baseUrl: "",
   },
 }
 
@@ -43,22 +43,16 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  // 加载保存的配置，始终使用默认值（OCR=Coze，校验=Coze），仅恢复 apiKey
+  // 加载保存的配置
   useEffect(() => {
     if (isOpen) {
       const savedConfig = localStorage.getItem("apiConfig")
       if (savedConfig) {
         try {
-          const parsed = JSON.parse(savedConfig)
-          setConfig({
-            ocr: { ...defaultConfig.ocr, apiKey: parsed.ocr?.apiKey ?? "" },
-            validate: { ...defaultConfig.validate, apiKey: parsed.validate?.apiKey ?? "" },
-          })
+          setConfig(JSON.parse(savedConfig))
         } catch {
           setConfig(defaultConfig)
         }
-      } else {
-        setConfig(defaultConfig)
       }
     }
   }, [isOpen])
@@ -230,7 +224,6 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
             <p>• 配置保存在本地浏览器中，仅对当前浏览器生效</p>
             <p>• 留空则使用系统默认配置</p>
             <p>• API Key 不会上传到服务器</p>
-            <p>• 正反向 LaTeX 转换与校验 LLM 共享同一模型配置</p>
           </div>
 
           {/* 消息提示 */}

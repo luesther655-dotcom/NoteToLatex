@@ -1,11 +1,9 @@
 import { Config, LLMClient, HeaderUtils } from "coze-coding-dev-sdk";
 
-// Default LLM configuration — Coze (for OCR)
+// Default LLM configuration from environment variables
 export const DEFAULT_LLM_API_KEY = process.env.DEFAULT_LLM_API_KEY || "";
-export const DEFAULT_LLM_BASE_URL = process.env.DEFAULT_LLM_BASE_URL || "https://api.coze.cn/v3";
+export const DEFAULT_LLM_BASE_URL = process.env.DEFAULT_LLM_BASE_URL || "";
 export const DEFAULT_LLM_MODEL = process.env.DEFAULT_LLM_MODEL || "doubao-seed-2-0-pro-260215";
-
-
 
 interface ApiConfig {
   apiKey?: string;

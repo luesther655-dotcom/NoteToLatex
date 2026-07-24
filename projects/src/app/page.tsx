@@ -207,7 +207,7 @@ export default function Home() {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showApiConfig, setShowApiConfig] = useState(false);
-
+  
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1110,7 +1110,6 @@ export default function Home() {
         onClose={() => setShowApiConfig(false)}
       />
 
-      {/* Credits Purchase Dialog */}
       </div>
   );
 }

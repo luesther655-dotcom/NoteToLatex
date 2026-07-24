@@ -1,67 +1,70 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { type Message } from "coze-coding-dev-sdk";
 import { createLLMClient } from "@/lib/llm-config";
+
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { markdown: markdownContent, markdownContent: mdContent, latexContent, apiConfig } = body;
-    const text = markdownContent || mdContent;
+    const { markdown, apiConfig } = await request.json();
 
-    if (!text) {
-      return NextResponse.json(
-        { error: "Missing markdown content" },
-        { status: 400 }
+    if (!markdown || typeof markdown !== "string") {
+      return new Response(
+        JSON.stringify({ error: "No markdown content provided" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const { client, model } = createLLMClient(apiConfig, request.headers);
 
-    const systemPrompt = latexContent
-      ? `You are a LaTeX validation expert. Your task is to compare the original Markdown content with the LaTeX conversion result and validate the accuracy.
+    const messages: Message[] = [
+      {
+        role: "system" as const,
+        content: `You are a meticulous academic proofreader specializing in mathematics and scientific notation. Your task is to review and correct OCR-transcribed handwritten notes.
 
-Compare the following:
-1. **Content Completeness**: Does the LaTeX output contain all the information from the original?
-2. **Mathematical Accuracy**: Are all formulas correctly converted to LaTeX?
-3. **Structural Integrity**: Are headings, lists, and document structure preserved?
-4. **Formatting Quality**: Is the LaTeX syntax correct and well-formatted?
+Your responsibilities:
+1. Fix any OCR errors in mathematical formulas (e.g., misread symbols, wrong subscripts/superscripts)
+2. Ensure LaTeX syntax is correct and properly delimited ($ for inline, $$ for display)
+3. Fix any structural issues in the Markdown formatting
+4. Verify mathematical consistency (e.g., equations should balance, theorem numbering should be sequential)
+5. Correct common OCR mistakes:
+   - '0' vs 'O' in math context
+   - '1' vs 'l' vs 'I'
+   - Missing or extra braces in LaTeX
+   - Incorrect fraction, integral, or sum notation
+6. Preserve ALL original content - do not add or remove information
+7. Output ONLY the corrected markdown content, no explanations
 
-For each category, provide a score (1-10) and a brief explanation.
+CRITICAL - Output Format Requirements:
+- Output MUST be valid Markdown format
+- All mathematical expressions MUST use LaTeX syntax:
+  - Inline math: $...$ (e.g., $x^2$, $\\alpha + \\beta$)
+  - Display math: $$...$$ (e.g., $$\\int_0^1 f(x)dx$$)
+- Use proper Markdown headings: # for H1, ## for H2, etc.
+- Use proper Markdown lists: - or * for unordered, 1. 2. 3. for ordered
+- Do NOT output raw OCR text or unformatted content
+- Do NOT include any markdown code block markers (no \`\`\`markdown or \`\`\`)
 
-Then provide an OVERALL score (1-10) and a FINAL VERDICT: "PASS" if overall >= 7, otherwise "NEEDS_IMPROVEMENT".
+IMPORTANT - Multi-page/Multi-image Context Coherence:
+If the content comes from multiple pages or images that are contextually related:
+- Maintain logical coherence between different sections
+- Ensure formulas, theorems, and references flow naturally across pages
+- If a formula or sentence is split across pages, connect them properly
+- Maintain consistent notation and terminology throughout
+- Preserve the logical structure and argument flow of the original document
 
-Format your response as JSON:
-{
-  "contentCompleteness": { "score": number, "comment": "string" },
-  "mathematicalAccuracy": { "score": number, "comment": "string" },
-  "structuralIntegrity": { "score": number, "comment": "string" },
-  "formattingQuality": { "score": number, "comment": "string" },
-  "overallScore": number,
-  "verdict": "PASS" | "NEEDS_IMPROVEMENT",
-  "suggestions": ["string", ...]
-}
-
-Output ONLY the JSON, no explanations.`
-      : `You are a markdown formatting expert. Your task is to clean up and format the OCR extracted text into well-structured Markdown.
-
-Fix the following issues:
-1. **Formatting**: Ensure proper Markdown syntax (headings, lists, code blocks, etc.)
-2. **Spacing**: Fix extra spaces, line breaks, and paragraph formatting
-3. **Math**: Ensure formulas are properly formatted with $...$ or $$...$$
-4. **Tables**: Fix any table formatting issues
-5. **Lists**: Ensure proper list indentation and numbering
-
-Output ONLY the cleaned Markdown text, no explanations or extra formatting.`;
-
-    const userMessage = latexContent
-      ? `Original Markdown:\n${text}\n\nConverted LaTeX:\n${latexContent}`
-      : `Clean up this OCR text into well-formatted Markdown:\n\n${text}`;
-
-    const messages = [
-      { role: "system" as const, content: systemPrompt },
-      { role: "user" as const, content: userMessage },
+Important: Maintain the original meaning and structure. Only fix clear errors.`,
+      },
+      {
+        role: "user" as const,
+        content: `Please review and correct the following OCR-transcribed handwritten notes. Fix any errors in math formulas, LaTeX syntax, and Markdown formatting while preserving all content. Output ONLY valid Markdown with proper LaTeX math syntax:\n\n${markdown}`,
+      },
     ];
 
-    const stream = client.stream(messages, { model, temperature: 0.1 });
+    const stream = client.stream(messages, {
+      model,
+      temperature: 0.1,
+    });
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
@@ -77,8 +80,11 @@ Output ONLY the cleaned Markdown text, no explanations or extra formatting.`;
           controller.close();
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : "Stream error";
-          const errorData = `data: ${JSON.stringify({ error: errorMsg })}\n\n`;
-          controller.enqueue(encoder.encode(errorData));
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: errorMsg })}\n\n`
+            )
+          );
           controller.close();
         }
       },
@@ -91,8 +97,11 @@ Output ONLY the cleaned Markdown text, no explanations or extra formatting.`;
         Connection: "keep-alive",
       },
     });
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : "Validation failed";
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Validation failed";
+    return new Response(
+      JSON.stringify({ error: errorMsg }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
