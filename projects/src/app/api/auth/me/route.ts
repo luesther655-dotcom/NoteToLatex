@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient(token);
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       return NextResponse.json(

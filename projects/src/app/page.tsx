@@ -536,11 +536,17 @@ export default function Home() {
             // Update last saved content to prevent unnecessary auto-save
             lastSavedContentRef.current = { markdown: validatedText, latex: latexText };
           } else {
-            const errData = await response.json();
-            console.error("Failed to save history:", errData);
+            // History save is non-critical; warn and continue
+            const contentType = response.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+              const errData = await response.json().catch(() => ({}));
+              console.warn("History save skipped:", errData?.error || response.status);
+            } else {
+              console.warn("History save skipped:", response.status);
+            }
           }
         } catch (e) {
-          console.error("Failed to save history:", e);
+          console.warn("History save skipped:", e instanceof Error ? e.message : e);
         }
       } else {
         console.log("User not logged in, skipping history save");
@@ -832,7 +838,7 @@ export default function Home() {
         }
       }
     } catch (error) {
-      console.error('[History] Save failed:', error);
+      console.warn('[History] Save skipped:', error instanceof Error ? error.message : error);
     } finally {
       setIsSaving(false);
     }

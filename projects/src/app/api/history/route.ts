@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient(token);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return NextResponse.json(
@@ -52,25 +52,32 @@ export async function POST(request: NextRequest) {
     const token = authHeader?.replace('Bearer ', '');
 
     if (!token) {
+      console.error('[history] No token provided');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - no token' },
         { status: 401 }
       );
     }
 
     const supabase = getSupabaseClient(token);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[history] Supabase client created, verifying user...');
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
+      console.error('[history] Auth error:', authError?.message);
       return NextResponse.json(
-        { error: 'Invalid token' },
+        { error: authError?.message || 'Invalid token' },
         { status: 401 }
       );
     }
 
+    console.log('[history] User authenticated:', user.id);
+
     const body = await request.json();
     const { title, source_image_url, markdown_content, latex_content } = body;
 
+    console.log('[history] Inserting record...');
     const { data, error } = await supabase
       .from('conversion_history')
       .insert({
@@ -84,16 +91,19 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      console.error('[history] Insert error:', error.message, error.details);
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
       );
     }
 
+    console.log('[history] Record saved:', data.id);
     return NextResponse.json({ history: data });
-  } catch {
+  } catch (err) {
+    console.error('[history] POST error:', err instanceof Error ? err.message : String(err));
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: err instanceof Error ? err.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -112,7 +122,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient(token);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return NextResponse.json(
@@ -178,7 +188,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient(token);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       return NextResponse.json(

@@ -10,15 +10,22 @@ interface SupabaseCredentials {
 }
 
 function loadEnv(): void {
-  if (envLoaded || (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY)) {
+  const hasUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const hasKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (envLoaded || (hasUrl && hasKey)) {
     return;
   }
 
   try {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('dotenv').config();
-      if (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY) {
+      const dotenv = require('dotenv');
+      // Try .env.local first, then .env
+      dotenv.config({ path: '.env.local' });
+      dotenv.config();
+      const hasUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const hasKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (hasUrl && hasKey) {
         envLoaded = true;
         return;
       }
