@@ -223,9 +223,14 @@ export default function Home() {
       setStep("done");
 
       // Save to history if user is logged in
+      // Re-check user status from auth context to ensure we have the latest value
       if (user) {
         try {
           const token = await getToken();
+          if (!token) {
+            console.warn("No auth token available, skipping history save");
+            return;
+          }
           const response = await fetch("/api/history", {
             method: "POST",
             headers: {
@@ -243,10 +248,15 @@ export default function Home() {
             const data = await response.json();
             setCurrentHistoryId(data.history?.id || null);
             setHistorySaved(true);
+          } else {
+            const errData = await response.json();
+            console.error("Failed to save history:", errData);
           }
         } catch (e) {
           console.error("Failed to save history:", e);
         }
+      } else {
+        console.log("User not logged in, skipping history save");
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
@@ -254,7 +264,7 @@ export default function Home() {
       setErrorMsg(message);
       setStep("error");
     }
-  }, [resetState]);
+  }, [resetState, user, getToken, uploadedFile, previewUrl]);
 
   // Shared refs for regeneration logic
   const editorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
