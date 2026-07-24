@@ -5,9 +5,10 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 
 interface AuthContextType {
   user: User | null;
+  username: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   getToken: () => Promise<string | null>;
 }
@@ -61,9 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, username: string) => {
     const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: username.trim(),
+        },
+      },
+    });
     return { error: error?.message ?? null };
   }, []);
 
@@ -79,8 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return session?.access_token ?? null;
   }, []);
 
+  const username = user?.user_metadata?.username || user?.email?.split('@')[0] || null;
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, getToken }}>
+    <AuthContext.Provider value={{ user, username, loading, signIn, signUp, signOut, getToken }}>
       {children}
     </AuthContext.Provider>
   );

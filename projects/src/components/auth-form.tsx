@@ -13,6 +13,7 @@ export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -32,13 +33,14 @@ export function AuthForm() {
           setError(error);
         }
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, username);
         if (error) {
           setError(error);
         } else {
           setMessage('Registration successful! Please check your email to verify your account.');
           setEmail('');
           setPassword('');
+          setUsername('');
         }
       }
     } catch {
@@ -71,6 +73,21 @@ export function AuthForm() {
             <Alert className="bg-green-50 border-green-200">
               <AlertDescription className="text-green-800">{message}</AlertDescription>
             </Alert>
+          )}
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                disabled={loading}
+                minLength={2}
+              />
+            </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>

@@ -55,7 +55,7 @@ async function readSSEStream(
 }
 
 export default function Home() {
-  const { user, loading: authLoading, signOut, getToken } = useAuth();
+  const { user, username, loading: authLoading, signOut, getToken } = useAuth();
   // Use refs to store latest user and getToken for async operations
   const userRef = useRef(user);
   const getTokenRef = useRef(getToken);
@@ -586,7 +586,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  {user.email}
+                  {username}
                 </span>
                 <button
                   onClick={signOut}

@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/lib/supabase-client';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, username } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -19,10 +19,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!username || username.trim().length < 2) {
+      return NextResponse.json(
+        { error: 'Username must be at least 2 characters' },
+        { status: 400 }
+      );
+    }
+
     const supabase = getSupabaseClient();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          username: username.trim(),
+        },
+      },
     });
 
     if (error) {
@@ -36,6 +48,7 @@ export async function POST(request: NextRequest) {
       user: {
         id: data.user?.id,
         email: data.user?.email,
+        username: data.user?.user_metadata?.username || username.trim(),
       },
       message: 'Registration successful. Please check your email to verify your account.',
     });
