@@ -55,6 +55,87 @@ async function readSSEStream(
   return fullText;
 }
 
+// Smart chunk splitting that avoids breaking LaTeX environments
+function splitTextSmartly(text: string, maxChunkSize: number): string[] {
+  if (text.length <= maxChunkSize) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxChunkSize) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Find a good break point
+    let breakPoint = -1;
+    
+    // First, try to find paragraph boundary
+    breakPoint = remaining.lastIndexOf("\n\n", maxChunkSize);
+    
+    // If no paragraph boundary found in the last half, try single newline
+    if (breakPoint === -1 || breakPoint < maxChunkSize / 2) {
+      breakPoint = remaining.lastIndexOf("\n", maxChunkSize);
+    }
+    
+    // If still no good break point, force split at max size
+    if (breakPoint === -1 || breakPoint < maxChunkSize / 2) {
+      breakPoint = maxChunkSize;
+    }
+
+    // Check if we're in the middle of a LaTeX environment
+    const chunk = remaining.slice(0, breakPoint);
+    
+    // Count unclosed LaTeX environments
+    const beginMatches = chunk.match(/\\begin\{([^}]+)\}/g) || [];
+    const endMatches = chunk.match(/\\end\{([^}]+)\}/g) || [];
+    
+    // Track environment types
+    const envStack: string[] = [];
+    for (const match of beginMatches) {
+      const envName = match.match(/\\begin\{([^}]+)\}/)?.[1];
+      if (envName) envStack.push(envName);
+    }
+    for (const match of endMatches) {
+      const envName = match.match(/\\end\{([^}]+)\}/)?.[1];
+      if (envName && envStack.length > 0 && envStack[envStack.length - 1] === envName) {
+        envStack.pop();
+      }
+    }
+    
+    // If there are unclosed environments, try to find a better break point
+    if (envStack.length > 0) {
+      // Look for the closing of the last unclosed environment
+      const lastEnv = envStack[envStack.length - 1];
+      const endPattern = new RegExp(`\\\\end\\{${lastEnv}\\}`);
+      const endMatch = remaining.slice(breakPoint).match(endPattern);
+      
+      if (endMatch && endMatch.index !== undefined) {
+        // Extend break point to include the closing tag
+        breakPoint = breakPoint + endMatch.index + endMatch[0].length;
+      }
+    }
+
+    // Check for unclosed display math ($$...$$)
+    const displayMathCount = (chunk.match(/\$\$/g) || []).length;
+    if (displayMathCount % 2 !== 0) {
+      // Unclosed display math, try to find the closing $$
+      const closingMatch = remaining.slice(breakPoint).match(/\$\$/);
+      if (closingMatch && closingMatch.index !== undefined) {
+        breakPoint = breakPoint + closingMatch.index + closingMatch[0].length;
+      }
+    }
+
+    chunks.push(remaining.slice(0, breakPoint));
+    remaining = remaining.slice(breakPoint).trimStart();
+  }
+
+  return chunks;
+}
+
 export default function Home() {
   const { user, username, loading: authLoading, signOut, getToken } = useAuth();
   // Use refs to store latest user and getToken for async operations
@@ -275,25 +356,8 @@ export default function Home() {
           setValidateProgress((prev) => prev + chunk);
         });
       } else {
-        // Long text - process in chunks
-        const chunks: string[] = [];
-        let remaining = ocrText;
-        while (remaining.length > 0) {
-          if (remaining.length <= CHUNK_SIZE) {
-            chunks.push(remaining);
-            break;
-          }
-          // Find a good break point (newline)
-          let breakPoint = remaining.lastIndexOf("\n\n", CHUNK_SIZE);
-          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
-            breakPoint = remaining.lastIndexOf("\n", CHUNK_SIZE);
-          }
-          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
-            breakPoint = CHUNK_SIZE;
-          }
-          chunks.push(remaining.slice(0, breakPoint));
-          remaining = remaining.slice(breakPoint).trimStart();
-        }
+        // Long text - process in chunks using smart splitting
+        const chunks = splitTextSmartly(ocrText, CHUNK_SIZE);
         
         const totalChunks = chunks.length;
         for (let i = 0; i < totalChunks; i++) {
@@ -340,25 +404,8 @@ export default function Home() {
           setLatexProgress((prev) => prev + chunk);
         });
       } else {
-        // Long text - process in chunks
-        const chunks: string[] = [];
-        let remaining = validatedText;
-        while (remaining.length > 0) {
-          if (remaining.length <= CHUNK_SIZE) {
-            chunks.push(remaining);
-            break;
-          }
-          // Find a good break point (newline)
-          let breakPoint = remaining.lastIndexOf("\n\n", CHUNK_SIZE);
-          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
-            breakPoint = remaining.lastIndexOf("\n", CHUNK_SIZE);
-          }
-          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
-            breakPoint = CHUNK_SIZE;
-          }
-          chunks.push(remaining.slice(0, breakPoint));
-          remaining = remaining.slice(breakPoint).trimStart();
-        }
+        // Long text - process in chunks using smart splitting
+        const chunks = splitTextSmartly(validatedText, CHUNK_SIZE);
         
         const totalChunks = chunks.length;
         for (let i = 0; i < totalChunks; i++) {
