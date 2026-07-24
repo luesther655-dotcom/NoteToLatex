@@ -72,6 +72,7 @@ export default function Home() {
   const [latexProgress, setLatexProgress] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isReverseConverting, setIsReverseConverting] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [historySaved, setHistorySaved] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -626,6 +627,8 @@ export default function Home() {
             <HistorySidebar 
               onSelectHistory={handleSelectHistory}
               refreshKey={historyRefreshKey}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
             />
             <div className="flex-1 mx-auto max-w-xl">
               <div className="mb-8 text-center">
@@ -657,6 +660,8 @@ export default function Home() {
               onSelectHistory={handleSelectHistory} 
               selectedId={currentHistoryId || undefined}
               refreshKey={historyRefreshKey}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
             />
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left panel: Upload preview + Pipeline */}

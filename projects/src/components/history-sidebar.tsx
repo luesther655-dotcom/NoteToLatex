@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { History, Trash2, Loader2, FileText, Pencil, Check, X } from 'lucide-react';
+import { History, Trash2, Loader2, FileText, Pencil, Check, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ConversionHistoryItem {
@@ -21,9 +21,11 @@ interface HistorySidebarProps {
   selectedId?: string;
   refreshKey?: number;
   onHistoryUpdate?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function HistorySidebar({ onSelectHistory, selectedId, refreshKey, onHistoryUpdate }: HistorySidebarProps) {
+export function HistorySidebar({ onSelectHistory, selectedId, refreshKey, onHistoryUpdate, collapsed, onToggleCollapse }: HistorySidebarProps) {
   const [histories, setHistories] = useState<ConversionHistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -146,11 +148,41 @@ export function HistorySidebar({ onSelectHistory, selectedId, refreshKey, onHist
     return null;
   }
 
+  // Collapsed state - show expand button
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center py-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleCollapse}
+          className="h-10 w-10"
+          title="展开历史记录"
+        >
+          <PanelLeftOpen className="h-5 w-5 text-muted-foreground" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-64 border-r border-border/50 bg-card/30 backdrop-blur-sm flex flex-col">
-      <div className="p-4 border-b border-border/50 flex items-center gap-2">
-        <History className="h-5 w-5 text-muted-foreground" />
-        <h2 className="font-serif text-lg">History</h2>
+      <div className="p-4 border-b border-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <History className="h-5 w-5 text-muted-foreground" />
+          <h2 className="font-serif text-lg">History</h2>
+        </div>
+        {onToggleCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleCollapse}
+            className="h-8 w-8"
+            title="收起侧边栏"
+          >
+            <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        )}
       </div>
       
       <ScrollArea className="flex-1">
