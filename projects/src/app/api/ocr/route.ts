@@ -1,100 +1,157 @@
 import { NextRequest } from "next/server";
-import { type Message } from "coze-coding-dev-sdk";
-import { createLLMClient } from "@/lib/llm-config";
+import { writeFile, unlink, mkdir, readFile } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { files, apiConfig } = body;
-    
-    if (!files || files.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No file provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+const PADDLE_OCR_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs";
+const PADDLE_OCR_TOKEN =
+  process.env.PADDLE_OCR_TOKEN || "25b06606a7df2c954d5edeaa68d86f3cab0f5bba";
+const PADDLE_OCR_MODEL = "PaddleOCR-VL-1.6";
+
+async function submitOcrJob(
+  filePath: string,
+  fileName: string,
+  mimeType: string
+): Promise<string> {
+  const buffer = await readFile(filePath);
+  const blob = new Blob([buffer], { type: mimeType });
+  const form = new FormData();
+  form.set("model", PADDLE_OCR_MODEL);
+  form.set(
+    "optionalPayload",
+    JSON.stringify({
+      useDocOrientationClassify: false,
+      useDocUnwarping: false,
+      useChartRecognition: false,
+    })
+  );
+  form.set("file", blob, fileName);
+
+  const response = await fetch(PADDLE_OCR_URL, {
+    method: "POST",
+    headers: { Authorization: `bearer ${PADDLE_OCR_TOKEN}` },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`PaddleOCR job submission failed: ${response.status} ${text}`);
+  }
+
+  const data = await response.json();
+  return data.data.jobId;
+}
+
+async function pollOcrJob(jobId: string): Promise<string> {
+  const maxRetries = 120;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch(`${PADDLE_OCR_URL}/${jobId}`, {
+      headers: { Authorization: `bearer ${PADDLE_OCR_TOKEN}` },
+    });
+
+    if (!response.ok) {
+      throw new Error(`PaddleOCR job poll failed: ${response.status}`);
     }
 
-    // Convert all files from base64 data URIs
-    const imageContents = files.map((fileData: { base64: string; mimeType: string }) => {
-      const dataUri = `data:${fileData.mimeType};base64,${fileData.base64}`;
-      
-      return {
-        type: "image_url" as const,
-        image_url: {
-          url: dataUri,
-          detail: "high" as const,
-        },
-      };
-    });
+    const data = await response.json();
+    const state = data.data.state;
 
-    const { client, model } = createLLMClient(apiConfig, request.headers);
+    if (state === "done") {
+      const jsonlUrl = data.data.resultUrl.jsonUrl;
+      const jsonlResponse = await fetch(jsonlUrl);
+      if (!jsonlResponse.ok) {
+        throw new Error(`Failed to fetch OCR results: ${jsonlResponse.status}`);
+      }
 
-    // Build message content with text prompt and all images
-    const userContent: Array<
-      | { type: "text"; text: string }
-      | { type: "image_url"; image_url: { url: string; detail: "high" } }
-    > = [
-      {
-        type: "text" as const,
-        text: files.length > 1
-          ? `Please transcribe the handwritten notes in these ${files.length} images into well-formatted Markdown with proper LaTeX math notation. The images are pages of the same document, please transcribe them in order and combine into a single document. Output only the transcribed content.`
-          : "Please transcribe the handwritten notes in this image into well-formatted Markdown with proper LaTeX math notation. Output only the transcribed content.",
-      },
-      ...imageContents,
-    ];
+      const jsonlText = await jsonlResponse.text();
+      const lines = jsonlText.trim().split("\n").filter(Boolean);
 
-    const messages: Message[] = [
-      {
-        role: "system" as const,
-        content: `You are an expert OCR engine specialized in handwritten mathematical notes. Your task is to transcribe handwritten content from images into clean, well-structured Markdown.
+      let markdown = "";
+      for (const line of lines) {
+        try {
+          const result = JSON.parse(line).result;
+          for (const res of result.layoutParsingResults) {
+            if (markdown) markdown += "\n\n";
+            markdown += res.markdown.text;
+          }
+        } catch {
+          // Skip malformed lines
+        }
+      }
+      return markdown;
+    } else if (state === "failed") {
+      const errorMsg = data.data.errorMsg || "Unknown error";
+      throw new Error(`PaddleOCR job failed: ${errorMsg}`);
+    }
 
-Rules:
-1. Transcribe ALL visible text faithfully - do not omit, summarize, or add content
-2. Use proper Markdown formatting:
-   - Headings with # ## ### etc.
-   - Inline math with $...$
-   - Display math with $$...$$
-   - Lists with - or 1. 2. 3.
-   - Bold with **text**, italic with *text*
-3. For mathematical formulas, use LaTeX syntax within $ or $$ delimiters
-4. Preserve the original structure and ordering of content
-5. If handwriting is ambiguous, choose the most mathematically sensible interpretation
-6. For multi-page documents, combine all pages into a single coherent document
-7. Output ONLY the transcribed markdown content, no explanations or commentary`,
-      },
-      {
-        role: "user" as const,
-        content: userContent,
-      },
-    ];
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
 
-    const stream = client.stream(messages, {
-      model,
-      temperature: 0.1,
-    });
+  throw new Error("PaddleOCR job timed out");
+}
+
+export async function POST(request: NextRequest) {
+  const tempDir = join(tmpdir(), "paddle-ocr-" + Date.now());
+  const tempFiles: string[] = [];
+
+  try {
+    const body = await request.json();
+    const { files } = body;
+
+    if (!files || files.length === 0) {
+      return new Response(JSON.stringify({ error: "No file provided" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    await mkdir(tempDir, { recursive: true });
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.mimeType?.split("/")[1] || "png";
+      const fileName = `page_${i + 1}.${ext}`;
+      const filePath = join(tempDir, fileName);
+      const buffer = Buffer.from(file.base64, "base64");
+      await writeFile(filePath, buffer);
+      tempFiles.push(filePath);
+    }
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of stream) {
-            if (chunk.content) {
-              const data = `data: ${JSON.stringify({ text: chunk.content.toString() })}\n\n`;
-              controller.enqueue(encoder.encode(data));
+          let allMarkdown = "";
+
+          for (let i = 0; i < tempFiles.length; i++) {
+            const filePath = tempFiles[i];
+            const fileName = `page_${i + 1}.${extFromPath(filePath)}`;
+            const mimeType = mimeTypeFromExt(extFromPath(filePath));
+
+            const jobId = await submitOcrJob(filePath, fileName, mimeType);
+            const markdown = await pollOcrJob(jobId);
+
+            if (markdown) {
+              if (allMarkdown) allMarkdown += "\n\n";
+              allMarkdown += markdown;
             }
           }
+
+          const data = `data: ${JSON.stringify({ text: allMarkdown })}\n\n`;
+          controller.enqueue(encoder.encode(data));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : "Stream error";
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errorMsg })}\n\n`
-            )
-          );
+          const errorMsg = err instanceof Error ? err.message : "OCR processing error";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMsg })}\n\n`));
           controller.close();
+        } finally {
+          for (const fp of tempFiles) {
+            try { await unlink(fp); } catch { /* ignore */ }
+          }
+          try { await unlink(tempDir).catch(() => {}); } catch { /* ignore */ }
         }
       },
     });
@@ -108,9 +165,31 @@ Rules:
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    for (const fp of tempFiles) {
+      try { unlink(fp); } catch { /* ignore */ }
+    }
+    try { unlink(tempDir).catch(() => {}); } catch { /* ignore */ }
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
+}
+
+function extFromPath(filePath: string): string {
+  const parts = filePath.split(".");
+  return parts.length > 1 ? parts[parts.length - 1] : "png";
+}
+
+function mimeTypeFromExt(ext: string): string {
+  const mime: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    bmp: "image/bmp",
+    tiff: "image/tiff",
+    tif: "image/tiff",
+  };
+  return mime[ext.toLowerCase()] || "image/png";
 }
