@@ -25,16 +25,16 @@ interface ApiConfig {
 
 const defaultConfig: ApiConfig = {
   ocr: {
-    provider: "coze",
-    model: "doubao-seed-2-0-pro-260215",
+    provider: "deepseek",
+    model: "deepseek-chat",
     apiKey: "",
-    baseUrl: "",
+    baseUrl: "https://api.deepseek.com",
   },
   validate: {
-    provider: "coze",
-    model: "doubao-seed-2-0-pro-260215",
+    provider: "deepseek",
+    model: "deepseek-chat",
     apiKey: "",
-    baseUrl: "",
+    baseUrl: "https://api.deepseek.com",
   },
 }
 
@@ -122,7 +122,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.provider}
                   onChange={(e) => updateOcrConfig("provider", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="coze"
+                  placeholder="deepseek"
                 />
               </div>
               <div>
@@ -132,7 +132,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.model}
                   onChange={(e) => updateOcrConfig("model", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="doubao-seed-2-0-pro-260215"
+                  placeholder="deepseek-chat"
                 />
               </div>
               <div>
@@ -157,7 +157,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.baseUrl}
                   onChange={(e) => updateOcrConfig("baseUrl", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="https://api.coze.cn/v3"
+                  placeholder="https://api.deepseek.com"
                 />
               </div>
             </div>
@@ -178,7 +178,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.validate.provider}
                   onChange={(e) => updateValidateConfig("provider", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="coze"
+                  placeholder="deepseek"
                 />
               </div>
               <div>
@@ -188,7 +188,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.validate.model}
                   onChange={(e) => updateValidateConfig("model", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="doubao-seed-2-0-pro-260215"
+                  placeholder="deepseek-chat"
                 />
               </div>
               <div>
@@ -213,7 +213,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.validate.baseUrl}
                   onChange={(e) => updateValidateConfig("baseUrl", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="https://api.coze.cn/v3"
+                  placeholder="https://api.deepseek.com"
                 />
               </div>
             </div>
