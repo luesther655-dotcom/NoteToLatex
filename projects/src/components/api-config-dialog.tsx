@@ -9,12 +9,6 @@ interface ApiConfigDialogProps {
 }
 
 interface ApiConfig {
-  ocr: {
-    provider: string
-    model: string
-    apiKey: string
-    baseUrl: string
-  }
   validate: {
     provider: string
     model: string
@@ -24,12 +18,6 @@ interface ApiConfig {
 }
 
 const defaultConfig: ApiConfig = {
-  ocr: {
-    provider: "coze",
-    model: "doubao-seed-2-0-pro-260215",
-    apiKey: "",
-    baseUrl: "",
-  },
   validate: {
     provider: "coze",
     model: "doubao-seed-2-0-pro-260215",
@@ -75,13 +63,6 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
     }
   }
 
-  const updateOcrConfig = (key: keyof ApiConfig["ocr"], value: string) => {
-    setConfig(prev => ({
-      ...prev,
-      ocr: { ...prev.ocr, [key]: value },
-    }))
-  }
-
   const updateValidateConfig = (key: keyof ApiConfig["validate"], value: string) => {
     setConfig(prev => ({
       ...prev,
@@ -107,62 +88,6 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
 
         {/* 内容 */}
         <div className="p-6 space-y-6">
-          {/* OCR 配置 */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Server className="w-4 h-4 text-[#B8956A]" />
-              OCR 模型配置
-            </div>
-            
-            <div className="space-y-3 pl-6">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">服务商</label>
-                <input
-                  type="text"
-                  value={config.ocr.provider}
-                  onChange={(e) => updateOcrConfig("provider", e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="coze"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">模型名称</label>
-                <input
-                  type="text"
-                  value={config.ocr.model}
-                  onChange={(e) => updateOcrConfig("model", e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="doubao-seed-2-0-pro-260215"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">
-                  <span className="flex items-center gap-1">
-                    <Key className="w-3 h-3" />
-                    API Key
-                  </span>
-                </label>
-                <input
-                  type="password"
-                  value={config.ocr.apiKey}
-                  onChange={(e) => updateOcrConfig("apiKey", e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="输入 API Key"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Base URL (可选)</label>
-                <input
-                  type="text"
-                  value={config.ocr.baseUrl}
-                  onChange={(e) => updateOcrConfig("baseUrl", e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="https://api.coze.cn/v3"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* 校验 LLM 配置 */}
           <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
