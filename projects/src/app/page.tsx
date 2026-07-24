@@ -448,8 +448,11 @@ export default function Home() {
 
   // Auto-save history when content changes (debounced)
   const saveHistoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveCountRef = useRef(0);
   useEffect(() => {
+    autoSaveCountRef.current += 1;
     console.log("Auto-save useEffect triggered:", { 
+      count: autoSaveCountRef.current,
       userId: user?.id, 
       step, 
       currentHistoryId, 
@@ -478,13 +481,14 @@ export default function Home() {
             latex_content: latexCode,
           }),
         });
-        console.log("Auto-update response:", response.status);
+        const result = await response.json();
+        console.log("Auto-update response:", response.status, result);
       } catch (e) {
         console.error("Failed to update history:", e);
       }
     }, 2000);
     return () => {
-      console.log("Auto-save cleanup called");
+      console.log("Auto-save cleanup called, count:", autoSaveCountRef.current);
       if (saveHistoryTimeoutRef.current) {
         clearTimeout(saveHistoryTimeoutRef.current);
       }
