@@ -1,6 +1,6 @@
 'use client';
 
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 interface AuthContextType {
@@ -8,7 +8,7 @@ interface AuthContextType {
   username: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null; session: Session | null }>;
   signOut: () => Promise<void>;
   getToken: () => Promise<string | null>;
   updateProfile: (updates: { username?: string; avatarUrl?: string }) => Promise<{ success: boolean; error?: string }>;
@@ -128,8 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string, username: string) => {
     const supabase = await getClient();
-    if (!supabase) return { error: '认证服务未配置' };
-    const { error } = await supabase.auth.signUp({
+    if (!supabase) return { error: '认证服务未配置', session: null };
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
-    return { error: error?.message ?? null };
+    return { error: error?.message ?? null, session: data?.session ?? null };
   }, [getClient]);
 
   const signOut = useCallback(async () => {

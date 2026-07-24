@@ -36,9 +36,12 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
           onSuccess?.();
         }
       } else {
-        const { error } = await signUp(email, password, username);
+        const { error, session } = await signUp(email, password, username);
         if (error) {
           setError(error);
+        } else if (session) {
+          // 邮箱验证已关闭，直接登录成功
+          onSuccess?.();
         } else {
           setMessage('注册成功！请检查邮箱验证您的账户。');
           setEmail('');
