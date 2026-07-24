@@ -2,7 +2,9 @@
 
 import { useCallback, useState, type DragEvent, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { X, FileImage, FileText, Upload } from "lucide-react";
+import { X, FileImage, FileText, Upload, Camera, PenTool } from "lucide-react";
+import { CameraCapture } from "@/components/camera-capture";
+import { WritingPad } from "@/components/writing-pad";
 
 interface FileUploadProps {
   onFilesSelect: (files: File[]) => void;
@@ -30,6 +32,8 @@ export function FileUpload({
   onClearFiles,
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showWritingPad, setShowWritingPad] = useState(false);
 
   const validateAndAddFiles = useCallback(
     (files: FileList | File[]) => {
@@ -39,6 +43,22 @@ export function FileUpload({
       if (validFiles.length > 0) {
         onFilesSelect(validFiles);
       }
+    },
+    [onFilesSelect]
+  );
+
+  const handleCameraCapture = useCallback(
+    (file: File) => {
+      onFilesSelect([file]);
+      setShowCamera(false);
+    },
+    [onFilesSelect]
+  );
+
+  const handleWritingPadSubmit = useCallback(
+    (file: File) => {
+      onFilesSelect([file]);
+      setShowWritingPad(false);
     },
     [onFilesSelect]
   );
@@ -137,6 +157,36 @@ export function FileUpload({
         </div>
       </div>
 
+      {/* 其他输入方式 */}
+      {!hasFiles && !isProcessing && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground">或</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+      )}
+
+      {!hasFiles && !isProcessing && (
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowCamera(true)}
+            className="h-20 flex flex-col gap-2 border-dashed hover:border-[#B8956A] hover:bg-[#B8956A]/5"
+          >
+            <Camera className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm">拍照输入</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowWritingPad(true)}
+            className="h-20 flex flex-col gap-2 border-dashed hover:border-[#B8956A] hover:bg-[#B8956A]/5"
+          >
+            <PenTool className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm">手写板输入</span>
+          </Button>
+        </div>
+      )}
+
       {/* 已选文件列表 */}
       {hasFiles && (
         <div className="rounded-lg border bg-card p-4">
@@ -208,6 +258,22 @@ export function FileUpload({
             </>
           )}
         </Button>
+      )}
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <CameraCapture
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
+
+      {/* Writing Pad Modal */}
+      {showWritingPad && (
+        <WritingPad
+          onSubmit={handleWritingPadSubmit}
+          onClose={() => setShowWritingPad(false)}
+        />
       )}
     </div>
   );

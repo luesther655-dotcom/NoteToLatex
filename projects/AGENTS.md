@@ -29,7 +29,9 @@ src/
 ├── components/
 │   ├── theme-provider.tsx         # 深浅主题 Context
 │   ├── theme-toggle.tsx           # 主题切换按钮
-│   ├── file-upload.tsx            # 拖拽上传组件
+│   ├── file-upload.tsx            # 拖拽上传组件 (含拍照/手写板入口)
+│   ├── camera-capture.tsx         # 拍照输入组件 (摄像头调用)
+│   ├── writing-pad.tsx            # 手写板输入组件 (Canvas 画板)
 │   ├── processing-pipeline.tsx    # 处理流水线可视化
 │   ├── results-panel.tsx          # 结果面板 (Preview/LaTeX/Editor)
 │   ├── auth-form.tsx              # 登录/注册表单
@@ -46,7 +48,10 @@ src/
 
 ## 核心流程
 1. 用户登录/注册（Supabase Auth）
-2. 用户上传 PDF/图片 → 前端拖拽上传
+2. 用户上传笔记（三种方式）：
+   - **文件上传**: 拖拽或点击选择 PDF/图片文件
+   - **拍照输入**: 调用设备摄像头拍照（支持前后摄像头切换）
+   - **手写板输入**: 在 Canvas 画板上手写（支持颜色/粗细调节、撤销、清空）
 3. PDF 文件先通过 pdfjs-dist 转为图片
 4. 图片发送到 `/api/ocr` → 多模态模型 OCR → 流式返回 Markdown
 5. Markdown 发送到 `/api/validate` → LLM 校验修正 → 流式返回
