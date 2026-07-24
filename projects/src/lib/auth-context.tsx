@@ -144,8 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const supabase = await getClient();
     if (!supabase) return;
-    await supabase.auth.signOut();
+    // Immediately clear local state, then fire-and-forget the remote signOut
     setUser(null);
+    supabase.auth.signOut().catch(() => {});
   }, [getClient]);
 
   const getToken = useCallback(async () => {
