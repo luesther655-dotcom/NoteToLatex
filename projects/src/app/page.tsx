@@ -7,9 +7,10 @@ import { ProcessingPipeline } from "@/components/processing-pipeline";
 import { ResultsPanel } from "@/components/results-panel";
 import { AuthForm } from "@/components/auth-form";
 import { HistorySidebar, type ConversionHistoryItem } from "@/components/history-sidebar";
+import { UserMenu } from "@/components/user-menu";
+import { ProfileSettingsDialog } from "@/components/profile-settings-dialog";
 import { useAuth } from "@/lib/auth-context";
 import { pdfToImages } from "@/lib/pdf-utils";
-import { LogOut, User } from "lucide-react";
 
 type PipelineStep = "idle" | "uploading" | "ocr" | "validating" | "converting" | "done" | "error";
 
@@ -76,6 +77,7 @@ export default function Home() {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [historySaved, setHistorySaved] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -583,19 +585,7 @@ export default function Home() {
               </button>
             )}
             {user && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  {username}
-                </span>
-                <button
-                  onClick={signOut}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                  title="退出登录"
-                >
-                  <LogOut className="h-3 w-3" />
-                </button>
-              </div>
+              <UserMenu onOpenSettings={() => setShowProfileSettings(true)} />
             )}
             <ThemeToggle />
           </div>
@@ -772,6 +762,12 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Profile Settings Dialog */}
+      <ProfileSettingsDialog
+        isOpen={showProfileSettings}
+        onClose={() => setShowProfileSettings(false)}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   getToken: () => Promise<string | null>;
+  updateProfile: (updates: { username?: string; avatarUrl?: string }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -88,10 +89,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return session?.access_token ?? null;
   }, []);
 
+  const updateProfile = useCallback(async (updates: { username?: string; avatarUrl?: string }) => {
+    const supabase = getSupabaseBrowserClient();
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
+    if (!currentUser) {
+      return { success: false, error: '未登录' };
+    }
+
+    const metadata: Record<string, string> = { ...currentUser.user_metadata };
+    if (updates.username !== undefined) {
+      metadata.username = updates.username;
+    }
+    if (updates.avatarUrl !== undefined) {
+      metadata.avatar_url = updates.avatarUrl;
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      data: metadata,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // 更新本地 user 状态
+    const { data: { user: updatedUser } } = await supabase.auth.getUser();
+    if (updatedUser) {
+      setUser(updatedUser);
+    }
+
+    return { success: true };
+  }, []);
+
   const username = user?.user_metadata?.username || user?.email?.split('@')[0] || null;
 
   return (
-    <AuthContext.Provider value={{ user, username, loading, signIn, signUp, signOut, getToken }}>
+    <AuthContext.Provider value={{ user, username, loading, signIn, signUp, signOut, getToken, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
