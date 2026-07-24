@@ -38,6 +38,14 @@ const defaultConfig: ApiConfig = {
   },
 }
 
+export function validateApiKey(key: string): string | null {
+  if (!key) return null // empty is allowed (use default)
+  if (key.length > 63) return "密钥不能超过 63 个字符"
+  if (/^[0-9]/.test(key)) return "密钥不能以数字开头"
+  if (!/^[a-zA-Z0-9_]+$/.test(key)) return "密钥只能包含字母、数字和下划线"
+  return null
+}
+
 export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
   const [config, setConfig] = useState<ApiConfig>(defaultConfig)
   const [isSaving, setIsSaving] = useState(false)
@@ -81,7 +89,15 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
     }
   }
 
+  const [apiKeyErrors, setApiKeyErrors] = useState<{ ocr: string | null; validate: string | null }>({
+    ocr: null,
+    validate: null,
+  })
+
   const updateOcrConfig = (key: keyof ApiConfig["ocr"], value: string) => {
+    if (key === "apiKey") {
+      setApiKeyErrors(prev => ({ ...prev, ocr: validateApiKey(value) }))
+    }
     setConfig(prev => ({
       ...prev,
       ocr: { ...prev.ocr, [key]: value },
@@ -89,6 +105,9 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
   }
 
   const updateValidateConfig = (key: keyof ApiConfig["validate"], value: string) => {
+    if (key === "apiKey") {
+      setApiKeyErrors(prev => ({ ...prev, validate: validateApiKey(value) }))
+    }
     setConfig(prev => ({
       ...prev,
       validate: { ...prev.validate, [key]: value },
@@ -152,9 +171,14 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   type="password"
                   value={config.ocr.apiKey}
                   onChange={(e) => updateOcrConfig("apiKey", e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
+                  className={`w-full px-3 py-2 text-sm bg-background border rounded-lg focus:outline-none ${
+                    apiKeyErrors.ocr ? "border-red-500 focus:border-red-500" : "border-border focus:border-[#B8956A]"
+                  }`}
                   placeholder="输入 API Key"
                 />
+                {apiKeyErrors.ocr && (
+                  <p className="text-xs text-red-500 mt-1">{apiKeyErrors.ocr}</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Base URL (可选)</label>
@@ -208,9 +232,14 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   type="password"
                   value={config.validate.apiKey}
                   onChange={(e) => updateValidateConfig("apiKey", e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
+                  className={`w-full px-3 py-2 text-sm bg-background border rounded-lg focus:outline-none ${
+                    apiKeyErrors.validate ? "border-red-500 focus:border-red-500" : "border-border focus:border-[#B8956A]"
+                  }`}
                   placeholder="输入 API Key"
                 />
+                {apiKeyErrors.validate && (
+                  <p className="text-xs text-red-500 mt-1">{apiKeyErrors.validate}</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Base URL (可选)</label>
