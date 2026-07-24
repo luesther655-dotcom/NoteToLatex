@@ -346,6 +346,7 @@ export default function Home() {
     } finally {
       setIsRegenerating(false);
       isRegeneratingRef.current = false;
+      setHasUnsavedChanges(true);
 
       if (pendingRegenerationRef.current) {
         pendingRegenerationRef.current = false;
@@ -389,6 +390,7 @@ export default function Home() {
     } finally {
       setIsReverseConverting(false);
       isReverseConvertingRef.current = false;
+      setHasUnsavedChanges(true);
 
       if (pendingReverseConversionRef.current) {
         pendingReverseConversionRef.current = false;
@@ -400,7 +402,6 @@ export default function Home() {
   const handleMarkdownEdit = useCallback((value: string) => {
     setValidatedMarkdown(value);
     latestMarkdownRef.current = value;
-    setHasUnsavedChanges(true);
 
     // Clear any pending LaTeX debounce to avoid conflicts
     if (latexDebounceRef.current) {
@@ -412,7 +413,14 @@ export default function Home() {
     if (editorDebounceRef.current) {
       clearTimeout(editorDebounceRef.current);
     }
-    if (step !== 'done' && step !== 'error') return;
+    if (step !== 'done' && step !== 'error') {
+      setHasUnsavedChanges(true);
+      return;
+    }
+
+    // Immediately disable save button when debounce starts
+    setIsRegenerating(true);
+    isRegeneratingRef.current = true;
 
     editorDebounceRef.current = setTimeout(() => {
       regenerateLatex();
@@ -422,7 +430,6 @@ export default function Home() {
   const handleLatexEdit = useCallback((value: string) => {
     setLatexCode(value);
     latestLatexRef.current = value;
-    setHasUnsavedChanges(true);
 
     // Clear any pending editor debounce to avoid conflicts
     if (editorDebounceRef.current) {
@@ -434,7 +441,14 @@ export default function Home() {
     if (latexDebounceRef.current) {
       clearTimeout(latexDebounceRef.current);
     }
-    if (step !== 'done' && step !== 'error') return;
+    if (step !== 'done' && step !== 'error') {
+      setHasUnsavedChanges(true);
+      return;
+    }
+
+    // Immediately disable save button when debounce starts
+    setIsReverseConverting(true);
+    isReverseConvertingRef.current = true;
 
     latexDebounceRef.current = setTimeout(() => {
       reverseConvertMarkdown();
