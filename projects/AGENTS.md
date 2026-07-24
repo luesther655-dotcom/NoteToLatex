@@ -40,6 +40,14 @@ src/
 5. 修正后 Markdown 发送到 `/api/latex` → LLM 转换为 LaTeX → 流式返回
 6. 结果展示: Markdown 预览 (KaTeX 渲染) / LaTeX 代码 / 在线编辑 / .tex 下载 / PDF 导出 / .md 下载
 
+## 双向同步与验证
+- **编辑器 → LaTeX**: 编辑 Markdown 后，1.5s 防抖触发 `/api/latex` 转换
+- **LaTeX → 编辑器**: 编辑 LaTeX 后，1.5s 防抖触发 `/api/reverse-latex` 反向转换
+- **转换验证**: 每次转换后进行反向验证（最多 2 次迭代），确保结果一致性
+  - Markdown → LaTeX 后，反向转换回 Markdown 比对
+  - LaTeX → Markdown 后，正向转换回 LaTeX 比对
+  - 比对逻辑：数学表达式保留率 ≥ 80%、标题结构保留、长度比例 0.5-2.5 倍
+
 ## 开发命令
 - `pnpm dev` - 开发环境
 - `pnpm build` - 构建
