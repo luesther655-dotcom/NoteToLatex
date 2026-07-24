@@ -199,13 +199,22 @@ export default function Home() {
           setOcrProgress((prev) => prev + chunk);
         });
       } else {
-        // Multi-page PDF - process page by page to avoid request size limits
+        // Multi-page PDF - process in batches to maintain context while avoiding size limits
+        const BATCH_SIZE = 3; // Process 3 pages at a time to maintain inter-page context
         const pageTexts: string[] = [];
-        for (let i = 0; i < filesToProcess.length; i++) {
-          setOcrProgress(`正在处理第 ${i + 1}/${filesToProcess.length} 页...`);
+        const totalBatches = Math.ceil(filesToProcess.length / BATCH_SIZE);
+        
+        for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+          const startPage = batchIndex * BATCH_SIZE;
+          const endPage = Math.min(startPage + BATCH_SIZE, filesToProcess.length);
+          const batchFiles = filesToProcess.slice(startPage, endPage);
+          
+          setOcrProgress(`正在处理第 ${startPage + 1}-${endPage} 页 (共 ${filesToProcess.length} 页)...`);
 
           const formData = new FormData();
-          formData.append("file", filesToProcess[i]);
+          batchFiles.forEach((f, idx) => {
+            formData.append(`file`, f, `page_${startPage + idx + 1}.png`);
+          });
 
           const ocrResponse = await fetch("/api/ocr", {
             method: "POST",
@@ -215,7 +224,7 @@ export default function Home() {
 
           if (!ocrResponse.ok) {
             const contentType = ocrResponse.headers.get("content-type") || "";
-            let errorMessage = `第 ${i + 1} 页 OCR 识别失败`;
+            let errorMessage = `第 ${startPage + 1}-${endPage} 页 OCR 识别失败`;
             if (contentType.includes("application/json")) {
               const errData = await ocrResponse.json();
               errorMessage = errData.error || errorMessage;
@@ -225,8 +234,8 @@ export default function Home() {
             throw new Error(errorMessage);
           }
 
-          const pageText = await readSSEStream(ocrResponse, () => {});
-          pageTexts.push(pageText);
+          const batchText = await readSSEStream(ocrResponse, () => {});
+          pageTexts.push(batchText);
         }
         ocrText = pageTexts.join("\n\n");
       }
