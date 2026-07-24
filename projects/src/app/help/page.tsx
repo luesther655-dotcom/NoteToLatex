@@ -7,7 +7,9 @@ import { ChevronLeft, ExternalLink, Download } from "lucide-react";
 const sections = [
   { id: "overview", title: "概述" },
   { id: "getting-started", title: "快速开始" },
-  { id: "file-upload", title: "上传文件" },
+  { id: "file-upload", title: "输入方式" },
+  { id: "camera-capture", title: "拍照输入" },
+  { id: "writing-pad", title: "手写板输入" },
   { id: "processing-pipeline", title: "处理流程" },
   { id: "results-panel", title: "结果面板" },
   { id: "export", title: "导出结果" },
@@ -125,23 +127,25 @@ export default function HelpPage() {
               <h3>基本流程</h3>
               <ol>
                 <li>访问 NoteToLaTeX 主页</li>
-                <li>（可选）注册或登录账户，以保存转换历史</li>
-                <li>上传您的手写笔记图片或 PDF 文件</li>
+                <li>选择一种输入方式：上传文件、拍照或手写</li>
                 <li>点击「开始转换」按钮</li>
                 <li>等待 AI 完成识别、校验和转换</li>
                 <li>在结果面板中查看、编辑或导出 LaTeX 代码</li>
               </ol>
               <div className="bg-muted/30 rounded-lg p-4 my-4 border border-border">
                 <p className="text-sm text-muted-foreground mb-0">
-                  <strong className="text-foreground">💡 提示：</strong>无需注册即可使用转换功能，但注册后可以保存和浏览历史记录。
+                  <strong className="text-foreground">💡 提示：</strong>无需注册即可使用全部转换功能。注册后可以保存和浏览历史记录，以及自定义 API 配置。
                 </p>
               </div>
             </section>
 
-            {/* 3. 上传文件 */}
+            {/* 3. 输入方式 */}
             <section id="file-upload">
-              <h2>上传文件</h2>
-              <h3>支持的格式</h3>
+              <h2>输入方式</h2>
+              <p>NoteToLaTeX 提供三种输入方式，您可以根据实际情况选择最方便的方式：</p>
+
+              <h3>方式一：文件上传</h3>
+              <h4>支持的格式</h4>
               <table>
                 <thead>
                   <tr>
@@ -158,28 +162,82 @@ export default function HelpPage() {
                 </tbody>
               </table>
 
-              <h3>上传方式</h3>
-              <ul>
-                <li><strong>拖拽上传</strong> — 将文件从电脑拖拽到上传区域即可</li>
-                <li><strong>点击选择</strong> — 点击上传区域，从文件选择器中选取文件</li>
-              </ul>
+              <p>您可以通过拖拽文件到上传区域，或点击上传区域从文件选择器中选取文件。</p>
 
-              <h3>多文件处理</h3>
+              <h4>多文件处理</h4>
               <p>
-                您可以同时上传多个文件（包括混合图片和 PDF）。多文件上传后，AI 会将分批处理各页内容
+                您可以同时上传多个文件（包括混合图片和 PDF）。多文件上传后，AI 会分批处理各页内容
                 并合并为一份完整的输出。PDF 文件的每一页会自动转换为图片进行处理。
               </p>
 
-              <h3>文件管理</h3>
-              <p>上传后，您可以在文件列表中查看所有已选文件，并支持以下操作：</p>
-              <ul>
-                <li>查看文件名和大小</li>
-                <li>移除单个文件</li>
-                <li>清空全部文件</li>
-              </ul>
+              <h4>文件管理</h4>
+              <p>上传后，您可以在文件列表中查看所有已选文件，支持查看文件名、移除单个文件或清空全部文件。</p>
             </section>
 
-            {/* 4. 处理流程 */}
+            {/* 4. 拍照输入 */}
+            <section id="camera-capture">
+              <h2>拍照输入</h2>
+              <p>
+                如果您有摄像头（如笔记本电脑、手机或外接摄像头），可以直接在页面中拍照，无需先将照片保存到设备再上传。
+              </p>
+
+              <h3>使用步骤</h3>
+              <ol>
+                <li>点击上传区域的「拍照输入」按钮</li>
+                <li>允许浏览器访问摄像头</li>
+                <li>调整拍摄角度，确保笔记内容清晰可见</li>
+                <li>点击拍照按钮完成拍摄</li>
+                <li>预览照片，满意则点击「确认」，不满意可重新拍摄</li>
+              </ol>
+
+              <h3>摄像头切换</h3>
+              <p>
+                如果设备有多个摄像头（如前置和后置），可以点击切换按钮在前后摄像头之间切换。
+              </p>
+
+              <div className="bg-muted/30 rounded-lg p-4 my-4 border border-border">
+                <p className="text-sm text-muted-foreground mb-0">
+                  <strong className="text-foreground">💡 提示：</strong>拍摄时请确保光线充足，页面平整，以获得最佳识别效果。拍照后可以继续使用文件上传或手写板添加更多内容。
+                </p>
+              </div>
+            </section>
+
+            {/* 5. 手写板输入 */}
+            <section id="writing-pad">
+              <h2>手写板输入</h2>
+              <p>
+                如果您使用触屏设备或鼠标，可以直接在浏览器中手写笔记，无需纸笔或外部文件。
+              </p>
+
+              <h3>使用步骤</h3>
+              <ol>
+                <li>点击上传区域的「手写板输入」按钮</li>
+                <li>在画布上使用鼠标或触控笔书写内容</li>
+                <li>点击「确认」将手写内容加入待转换列表</li>
+              </ol>
+
+              <h3>画笔工具</h3>
+              <ul>
+                <li><strong>画笔模式</strong> — 默认模式，可自由书写</li>
+                <li><strong>橡皮擦</strong> — 擦除写错的内容</li>
+                <li><strong>颜色选择</strong> — 切换画笔颜色（黑色、蓝色、红色、绿色等）</li>
+                <li><strong>粗细调节</strong> — 调整画笔线条的粗细</li>
+              </ul>
+
+              <h3>其他操作</h3>
+              <ul>
+                <li><strong>撤销</strong> — 撤销上一步绘画操作</li>
+                <li><strong>清空</strong> — 一键清空画布所有内容</li>
+              </ul>
+
+              <div className="bg-muted/30 rounded-lg p-4 my-4 border border-border">
+                <p className="text-sm text-muted-foreground mb-0">
+                  <strong className="text-foreground">💡 提示：</strong>手写板内容会以图片形式传入 AI 处理，书写时尽量工整以获得更好的识别效果。三种输入方式可以混合使用。
+                </p>
+              </div>
+            </section>
+
+            {/* 6. 处理流程 */}
             <section id="processing-pipeline">
               <h2>处理流程</h2>
               <p>上传文件并点击「开始转换」后，系统会按以下四个步骤进行处理：</p>
@@ -209,7 +267,7 @@ export default function HelpPage() {
               </div>
             </section>
 
-            {/* 5. 结果面板 */}
+            {/* 7. 结果面板 */}
             <section id="results-panel">
               <h2>结果面板</h2>
               <p>处理完成后，右侧结果面板提供三种视图：</p>
@@ -233,7 +291,7 @@ export default function HelpPage() {
               </p>
             </section>
 
-            {/* 6. 导出结果 */}
+            {/* 8. 导出结果 */}
             <section id="export">
               <h2>导出结果</h2>
               <p>根据当前所在的标签页，提供不同的导出选项：</p>
@@ -251,7 +309,7 @@ export default function HelpPage() {
               </ul>
             </section>
 
-            {/* 7. 双向编辑 */}
+            {/* 9. 双向编辑 */}
             <section id="bidirectional-edit">
               <h2>双向编辑</h2>
               <p>
@@ -277,18 +335,18 @@ export default function HelpPage() {
               </div>
             </section>
 
-            {/* 8. 账户管理 */}
+            {/* 10. 账户管理 */}
             <section id="account">
               <h2>账户管理</h2>
 
               <h3>注册账户</h3>
-              <p>在主页登录表单中切换到「注册」选项卡，填写以下信息即可创建账户：</p>
+              <p>在主页点击右上角「登录」按钮，切换到「注册」选项卡，填写以下信息即可创建账户：</p>
               <ul>
                 <li><strong>用户名</strong> — 至少 2 个字符，用于显示您的身份</li>
-                <li><strong>邮箱</strong> — 用于登录和账户验证</li>
+                <li><strong>邮箱</strong> — 用于登录</li>
                 <li><strong>密码</strong> — 至少 6 个字符</li>
               </ul>
-              <p>注册后请检查邮箱完成验证。验证通过后即可使用邮箱和密码登录。</p>
+              <p>注册成功后即可直接登录，无需邮箱验证。</p>
 
               <h3>个性设置</h3>
               <p>登录后，点击右上角用户头像或用户名打开菜单，选择「个性设置」：</p>
@@ -298,7 +356,7 @@ export default function HelpPage() {
               </ul>
             </section>
 
-            {/* 9. 转换历史 */}
+            {/* 11. 转换历史 */}
             <section id="history">
               <h2>转换历史</h2>
               <p>
@@ -319,7 +377,7 @@ export default function HelpPage() {
               <p>点击任意历史记录，系统会加载该次转换的 Markdown 和 LaTeX 内容，您可以继续编辑和导出。</p>
             </section>
 
-            {/* 10. API 配置 */}
+            {/* 12. API 配置 */}
             <section id="api-config">
               <h2>API 配置</h2>
               <p>
@@ -345,8 +403,14 @@ export default function HelpPage() {
 
               <h3>独立配置</h3>
               <p>
-                OCR 模型和校验 LLM 模型可以分别配置不同的服务商和 API Key，方便您根据需求
+                OCR 识别模型和校验 LLM 模型可以分别配置不同的服务商和 API Key，方便您根据需求
                 选择最合适的模型组合。
+              </p>
+
+              <h3>默认配置</h3>
+              <p>
+                如果未配置 API，系统默认使用内置的扣子 AI 服务，无需任何设置即可使用全部转换功能。
+                自定义 API 配置仅在需要更换模型或服务商时使用。
               </p>
 
               <div className="bg-muted/30 rounded-lg p-4 my-4 border border-border">
@@ -356,7 +420,7 @@ export default function HelpPage() {
               </div>
             </section>
 
-            {/* 11. 主题切换 */}
+            {/* 13. 主题切换 */}
             <section id="theme">
               <h2>主题切换</h2>
               <p>
@@ -369,7 +433,7 @@ export default function HelpPage() {
               </p>
             </section>
 
-            {/* 12. 常见问题 */}
+            {/* 14. 常见问题 */}
             <section id="faq">
               <h2>常见问题</h2>
 
@@ -395,7 +459,7 @@ export default function HelpPage() {
               <p>您可以直接复制 LaTeX 代码到您的 .tex 文件中，或下载 .tex 文件后在本地 LaTeX 环境（如 TeX Live、Overleaf）中编译。</p>
             </section>
 
-            {/* 13. 使用技巧 */}
+            {/* 15. 使用技巧 */}
             <section id="tips">
               <h2>使用技巧</h2>
 
@@ -431,8 +495,10 @@ export default function HelpPage() {
             {/* 页脚 */}
             <div className="mt-16 pt-8 border-t border-border">
               <p className="text-xs text-muted-foreground text-center">
-                NoteToLaTeX — 手写笔记转换器 &middot; 基于 AI 技术构建 &middot;
-                如有问题或建议，欢迎在 GitHub 上提交 Issue
+                NoteToLaTeX — 手写笔记转换器 &middot; 基于 AI 技术构建
+              </p>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                联系我们：<a href="mailto:2041834361@qq.com" className="text-[#B8956A] hover:underline">2041834361@qq.com</a>
               </p>
               <div className="flex justify-center gap-4 mt-3">
                 <a
