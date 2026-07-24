@@ -80,6 +80,8 @@ export default function Home() {
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -118,10 +120,25 @@ export default function Home() {
     }
   }, []);
 
+  const handleAbort = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsProcessing(false);
+    setIsRegenerating(false);
+    setIsReverseConverting(false);
+    setStep("idle");
+    setOcrProgress("");
+    setValidateProgress("");
+    setLatexProgress("");
+  }, []);
+
   const processFile = useCallback(async (file: File) => {
     resetState();
     setUploadedFile(file);
     setErrorMsg("");
+    setIsProcessing(true);
 
     // Create preview for images
     if (file.type.startsWith("image/")) {
@@ -307,6 +324,8 @@ export default function Home() {
       const message = err instanceof Error ? err.message : "处理失败";
       setErrorMsg(message);
       setStep("error");
+    } finally {
+      setIsProcessing(false);
     }
   }, [resetState, uploadedFile, previewUrl]);
 
@@ -570,7 +589,6 @@ export default function Home() {
     }
   }, [user, hasUnsavedChanges, currentHistoryId, validatedMarkdown, latexCode, getToken]);
 
-  const isProcessing = step !== "idle" && step !== "done" && step !== "error";
   const hasResults = step === "done" || (step === "error" && validatedMarkdown.length > 0);
 
   return (
@@ -597,7 +615,18 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2">
-            {step !== "idle" && (
+            {isProcessing && (
+              <button
+                onClick={handleAbort}
+                className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/20"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="6" width="12" height="12" />
+                </svg>
+                终止
+              </button>
+            )}
+            {step !== "idle" && !isProcessing && (
               <button
                 onClick={resetState}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
