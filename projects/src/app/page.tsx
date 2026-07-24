@@ -250,48 +250,135 @@ export default function Home() {
       }
       setOcrMarkdown(ocrText);
 
-      // Step 2: Validate
+      // Step 2: Validate (in chunks for long text to avoid truncation)
       setStep("validating");
       setValidateProgress("");
 
-      const validateResponse = await fetch("/api/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: ocrText }),
-        signal: controller.signal,
-      });
-
-      if (!validateResponse.ok) {
-        const errData = await validateResponse.json();
-        throw new Error(errData.error || "校验请求失败");
-      }
-
+      const CHUNK_SIZE = 3000; // characters per chunk
       let validatedText = "";
-      validatedText = await readSSEStream(validateResponse, (chunk) => {
-        setValidateProgress((prev) => prev + chunk);
-      });
+      
+      if (ocrText.length <= CHUNK_SIZE) {
+        // Short text - process all at once
+        const validateResponse = await fetch("/api/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markdown: ocrText }),
+          signal: controller.signal,
+        });
+
+        if (!validateResponse.ok) {
+          const errData = await validateResponse.json();
+          throw new Error(errData.error || "校验请求失败");
+        }
+
+        validatedText = await readSSEStream(validateResponse, (chunk) => {
+          setValidateProgress((prev) => prev + chunk);
+        });
+      } else {
+        // Long text - process in chunks
+        const chunks: string[] = [];
+        let remaining = ocrText;
+        while (remaining.length > 0) {
+          if (remaining.length <= CHUNK_SIZE) {
+            chunks.push(remaining);
+            break;
+          }
+          // Find a good break point (newline)
+          let breakPoint = remaining.lastIndexOf("\n\n", CHUNK_SIZE);
+          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
+            breakPoint = remaining.lastIndexOf("\n", CHUNK_SIZE);
+          }
+          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
+            breakPoint = CHUNK_SIZE;
+          }
+          chunks.push(remaining.slice(0, breakPoint));
+          remaining = remaining.slice(breakPoint).trimStart();
+        }
+        
+        const totalChunks = chunks.length;
+        for (let i = 0; i < totalChunks; i++) {
+          setValidateProgress(`正在校验第 ${i + 1}/${totalChunks} 部分...`);
+          const validateResponse = await fetch("/api/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: chunks[i] }),
+            signal: controller.signal,
+          });
+
+          if (!validateResponse.ok) {
+            const errData = await validateResponse.json();
+            throw new Error(errData.error || `校验第 ${i + 1} 部分失败`);
+          }
+
+          const chunkText = await readSSEStream(validateResponse, () => {});
+          validatedText += (validatedText ? "\n\n" : "") + chunkText;
+        }
+      }
       setValidatedMarkdown(validatedText);
 
-      // Step 3: Convert to LaTeX
+      // Step 3: Convert to LaTeX (in chunks for long text to avoid truncation)
       setStep("converting");
       setLatexProgress("");
 
-      const latexResponse = await fetch("/api/latex", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markdown: validatedText }),
-        signal: controller.signal,
-      });
-
-      if (!latexResponse.ok) {
-        const errData = await latexResponse.json();
-        throw new Error(errData.error || "LaTeX 转换失败");
-      }
-
       let latexText = "";
-      latexText = await readSSEStream(latexResponse, (chunk) => {
-        setLatexProgress((prev) => prev + chunk);
-      });
+      
+      if (validatedText.length <= CHUNK_SIZE) {
+        // Short text - process all at once
+        const latexResponse = await fetch("/api/latex", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markdown: validatedText }),
+          signal: controller.signal,
+        });
+
+        if (!latexResponse.ok) {
+          const errData = await latexResponse.json();
+          throw new Error(errData.error || "LaTeX 转换失败");
+        }
+
+        latexText = await readSSEStream(latexResponse, (chunk) => {
+          setLatexProgress((prev) => prev + chunk);
+        });
+      } else {
+        // Long text - process in chunks
+        const chunks: string[] = [];
+        let remaining = validatedText;
+        while (remaining.length > 0) {
+          if (remaining.length <= CHUNK_SIZE) {
+            chunks.push(remaining);
+            break;
+          }
+          // Find a good break point (newline)
+          let breakPoint = remaining.lastIndexOf("\n\n", CHUNK_SIZE);
+          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
+            breakPoint = remaining.lastIndexOf("\n", CHUNK_SIZE);
+          }
+          if (breakPoint === -1 || breakPoint < CHUNK_SIZE / 2) {
+            breakPoint = CHUNK_SIZE;
+          }
+          chunks.push(remaining.slice(0, breakPoint));
+          remaining = remaining.slice(breakPoint).trimStart();
+        }
+        
+        const totalChunks = chunks.length;
+        for (let i = 0; i < totalChunks; i++) {
+          setLatexProgress(`正在转换第 ${i + 1}/${totalChunks} 部分...`);
+          const latexResponse = await fetch("/api/latex", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: chunks[i] }),
+            signal: controller.signal,
+          });
+
+          if (!latexResponse.ok) {
+            const errData = await latexResponse.json();
+            throw new Error(errData.error || `LaTeX 转换第 ${i + 1} 部分失败`);
+          }
+
+          const chunkText = await readSSEStream(latexResponse, () => {});
+          latexText += (latexText ? "\n\n" : "") + chunkText;
+        }
+      }
       setLatexCode(latexText);
 
       setStep("done");
