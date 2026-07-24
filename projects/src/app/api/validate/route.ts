@@ -1,151 +1,72 @@
-import { NextRequest } from "next/server";
-import { DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL } from "@/lib/llm-config";
-
-export const maxDuration = 120;
-
-interface Message {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
+import { NextRequest, NextResponse } from "next/server";
+import { createLLMClient } from "@/lib/llm-config";
 
 export async function POST(request: NextRequest) {
   try {
-    const { markdown, apiConfig } = await request.json();
+    const body = await request.json();
+    const { markdownContent, latexContent, apiConfig } = body;
 
-    if (!markdown || typeof markdown !== "string") {
-      return new Response(
-        JSON.stringify({ error: "No markdown content provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+    if (!markdownContent || !latexContent) {
+      return NextResponse.json(
+        { error: "Missing markdownContent or latexContent" },
+        { status: 400 }
       );
     }
 
-    // Use DeepSeek as default for validation; user's custom config overrides
-    const mergedConfig = {
-      apiKey: apiConfig?.apiKey || DEEPSEEK_API_KEY,
-      baseUrl: apiConfig?.baseUrl || DEEPSEEK_BASE_URL,
-      model: apiConfig?.model || DEEPSEEK_MODEL,
-    };
+    const { client, model } = createLLMClient(apiConfig, request.headers);
 
-    const messages: Message[] = [
+    const messages = [
       {
-        role: "system",
-        content: `You are a meticulous academic proofreader specializing in mathematics and scientific notation. Your task is to review and correct OCR-transcribed handwritten notes.
+        role: "system" as const,
+        content: `You are a LaTeX validation expert. Your task is to compare the original Markdown content with the LaTeX conversion result and validate the accuracy.
 
-Your responsibilities:
-1. Fix any OCR errors in mathematical formulas (e.g., misread symbols, wrong subscripts/superscripts)
-2. Ensure LaTeX syntax is correct and properly delimited ($ for inline, $$ for display)
-3. Fix any structural issues in the Markdown formatting
-4. Verify mathematical consistency (e.g., equations should balance, theorem numbering should be sequential)
-5. Correct common OCR mistakes:
-   - '0' vs 'O' in math context
-   - '1' vs 'l' vs 'I'
-   - Missing or extra braces in LaTeX
-   - Incorrect fraction, integral, or sum notation
-6. Preserve ALL original content - do not add or remove information
-7. Output ONLY the corrected markdown content, no explanations
+Compare the following:
+1. **Content Completeness**: Does the LaTeX output contain all the information from the original?
+2. **Mathematical Accuracy**: Are all formulas correctly converted to LaTeX?
+3. **Structural Integrity**: Are headings, lists, and document structure preserved?
+4. **Formatting Quality**: Is the LaTeX syntax correct and well-formatted?
 
-CRITICAL - Output Format Requirements:
-- Output MUST be valid Markdown format
-- All mathematical expressions MUST use LaTeX syntax:
-  - Inline math: $...$ (e.g., $x^2$, $\\alpha + \\beta$)
-  - Display math: $$...$$ (e.g., $$\\int_0^1 f(x)dx$$)
-- Use proper Markdown headings: # for H1, ## for H2, etc.
-- Use proper Markdown lists: - or * for unordered, 1. 2. 3. for ordered
-- Do NOT output raw OCR text or unformatted content
-- Do NOT include any markdown code block markers (no \`\`\`markdown or \`\`\`)
+For each category, provide a score (1-10) and a brief explanation.
 
-IMPORTANT - Multi-page/Multi-image Context Coherence:
-If the content comes from multiple pages or images that are contextually related:
-- Maintain logical coherence between different sections
-- Ensure formulas, theorems, and references flow naturally across pages
-- If a formula or sentence is split across pages, connect them properly
-- Maintain consistent notation and terminology throughout
-- Preserve the logical structure and argument flow of the original document
+Then provide an OVERALL score (1-10) and a FINAL VERDICT: "PASS" if overall >= 7, otherwise "NEEDS_IMPROVEMENT".
 
-Important: Maintain the original meaning and structure. Only fix clear errors.`,
+Format your response as JSON:
+{
+  "contentCompleteness": { "score": number, "comment": "string" },
+  "mathematicalAccuracy": { "score": number, "comment": "string" },
+  "structuralIntegrity": { "score": number, "comment": "string" },
+  "formattingQuality": { "score": number, "comment": "string" },
+  "overallScore": number,
+  "verdict": "PASS" | "NEEDS_IMPROVEMENT",
+  "suggestions": ["string", ...]
+}
+
+Output ONLY the JSON, no explanations.`,
       },
       {
-        role: "user",
-        content: `Please review and correct the following OCR-transcribed handwritten notes. Fix any errors in math formulas, LaTeX syntax, and Markdown formatting while preserving all content. Output ONLY valid Markdown with proper LaTeX math syntax:\n\n${markdown}`,
+        role: "user" as const,
+        content: `Original Markdown:\n${markdownContent}\n\nConverted LaTeX:\n${latexContent}`,
       },
     ];
 
-    // Call DeepSeek's OpenAI-compatible API directly
-    const response = await fetch(`${mergedConfig.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${mergedConfig.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: mergedConfig.model,
-        messages,
-        temperature: 0.1,
-        stream: true,
-      }),
-    });
+    const stream = client.stream(messages, { model, temperature: 0.1 });
 
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "");
-      return new Response(
-        JSON.stringify({
-          error: `DeepSeek API error: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
-        }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // Stream the response back to the client
     const encoder = new TextEncoder();
-    const reader = response.body?.getReader();
-    if (!reader) {
-      return new Response(
-        JSON.stringify({ error: "No response body from DeepSeek" }),
-        { status: 502, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          const decoder = new TextDecoder();
-          let buffer = "";
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed || !trimmed.startsWith("data: ")) continue;
-
-              const data = trimmed.slice(6);
-              if (data === "[DONE]") continue;
-
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content || "";
-                if (content) {
-                  const sse = `data: ${JSON.stringify({ text: content })}\n\n`;
-                  controller.enqueue(encoder.encode(sse));
-                }
-              } catch {
-                // Skip malformed JSON lines
-              }
+          for await (const chunk of stream) {
+            if (chunk.content) {
+              const data = `data: ${JSON.stringify({ text: chunk.content.toString() })}\n\n`;
+              controller.enqueue(encoder.encode(data));
             }
           }
-
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : "Stream error";
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ error: errorMsg })}\n\n`)
-          );
+          const errorData = `data: ${JSON.stringify({ error: errorMsg })}\n\n`;
+          controller.enqueue(encoder.encode(errorData));
           controller.close();
         }
       },
@@ -158,11 +79,8 @@ Important: Maintain the original meaning and structure. Only fix clear errors.`,
         Connection: "keep-alive",
       },
     });
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Validation failed";
-    return new Response(
-      JSON.stringify({ error: errorMsg }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Validation failed";
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }

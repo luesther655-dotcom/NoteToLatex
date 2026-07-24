@@ -1,58 +1,61 @@
-import { NextRequest } from "next/server";
-import { streamDeepSeek } from "@/lib/llm-config";
-
-export const maxDuration = 120;
+import { NextRequest, NextResponse } from "next/server";
+import { createLLMClient } from "@/lib/llm-config";
 
 export async function POST(request: NextRequest) {
   try {
-    const { latex } = await request.json();
+    const body = await request.json();
+    const { latexContent, apiConfig } = body;
 
-    if (!latex || typeof latex !== "string") {
-      return new Response(
-        JSON.stringify({ error: "No LaTeX content provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+    if (!latexContent) {
+      return NextResponse.json(
+        { error: "Missing latexContent" },
+        { status: 400 }
       );
     }
 
-    const readable = await streamDeepSeek([
+    const { client, model } = createLLMClient(apiConfig, request.headers);
+
+    const messages = [
       {
-        role: "system",
-        content: `You are an expert at converting LaTeX documents back to Markdown format. Convert the given LaTeX content into clean, well-formatted Markdown.
+        role: "system" as const,
+        content: `You are a Markdown conversion expert. Convert the following LaTeX code into clean Markdown format.
 
-CRITICAL RULE - Content Consistency:
-You MUST ensure the converted Markdown content is COMPLETELY CONSISTENT with the original LaTeX. Every piece of information, every math expression, every heading, every paragraph must be preserved exactly. Do NOT add, remove, or modify any content. The Markdown is a faithful representation of the LaTeX - nothing more, nothing less.
-
-Conversion Rules:
-1. Convert LaTeX structure to Markdown:
-   - \\section{Title} → # Title
-   - \\subsection{Title} → ## Title
-   - \\subsubsection{Title} → ### Title
-   - \\textbf{text} → **text**
-   - \\textit{text} → *text*
-   - \\emph{text} → *text*
-   - $...$ or \\(...\\) inline math → $...$
-   - \\[...\\] or $$...$$ display math → $$...$$
-   - \\begin{itemize}\\item ... → - ...
-   - \\begin{enumerate}\\item ... → 1. ...
-   - \\begin{theorem}...\\end{theorem} → **Theorem.** ...
-   - \\begin{proof}...\\end{proof} → *Proof.* ...
-   
-2. Handle mathematical expressions:
-   - Keep all math notation intact
-   - Convert LaTeX commands to standard math notation where appropriate
-   - \\frac{a}{b} → \\frac{a}{b} (keep as-is for complex fractions)
-   - \\sum, \\int, \\lim etc. → keep as LaTeX commands in $...$
-   
-3. Remove LaTeX preamble (\\documentclass, \\usepackage, \\begin{document}, \\end{document})
-4. Preserve the semantic meaning and structure
-5. Output ONLY the Markdown content, no explanations
-6. If the content appears to already be Markdown, return it as-is`,
+Rules:
+1. Convert all LaTeX commands and environments to proper Markdown equivalents
+2. Preserve inline math $...$ and display math $$...$$ exactly as they are
+3. Convert LaTeX sections, subsections, etc. to Markdown headings
+4. Convert LaTeX lists, tables, and other environments to Markdown equivalents
+5. Output ONLY the Markdown content, no explanations or commentary
+6. Maintain the document structure with appropriate Markdown formatting`,
       },
       {
-        role: "user",
-        content: `Convert the following LaTeX content to Markdown. Remember: ensure the Markdown content is COMPLETELY CONSISTENT with the original LaTeX - preserve all content exactly:\n\n${latex}`,
+        role: "user" as const,
+        content: latexContent,
       },
-    ]);
+    ];
+
+    const stream = client.stream(messages, { model, temperature: 0.1 });
+
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            if (chunk.content) {
+              const data = `data: ${JSON.stringify({ text: chunk.content.toString() })}\n\n`;
+              controller.enqueue(encoder.encode(data));
+            }
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : "Stream error";
+          const errorData = `data: ${JSON.stringify({ error: errorMsg })}\n\n`;
+          controller.enqueue(encoder.encode(errorData));
+          controller.close();
+        }
+      },
+    });
 
     return new Response(readable, {
       headers: {
@@ -61,11 +64,8 @@ Conversion Rules:
         Connection: "keep-alive",
       },
     });
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Reverse LaTeX conversion failed";
-    return new Response(
-      JSON.stringify({ error: errorMsg }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Conversion failed";
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
