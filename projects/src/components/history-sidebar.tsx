@@ -97,14 +97,13 @@ export function HistorySidebar({ onSelectHistory, selectedId, refreshKey, onHist
     if (!editingId) return;
     
     const token = await getToken();
-    const response = await fetch('/api/history', {
+    const response = await fetch(`/api/history?id=${editingId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        id: editingId,
         title: editingTitle,
       }),
     });
