@@ -478,7 +478,7 @@ export default function Home() {
         clearTimeout(saveHistoryTimeoutRef.current);
       }
     };
-  }, [user, step, currentHistoryId, validatedMarkdown, latexCode, getToken]);
+  }, [user?.id, step, currentHistoryId, validatedMarkdown, latexCode, getToken]);
 
   const isProcessing = step !== "idle" && step !== "done" && step !== "error";
   const hasResults = step === "done" || (step === "error" && validatedMarkdown.length > 0);
