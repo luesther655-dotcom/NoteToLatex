@@ -254,9 +254,9 @@ export function ResultsPanel({
           {onSave && (
             <button
               onClick={onSave}
-              disabled={isSaving || !hasUnsavedChanges}
+              disabled={isSaving || isRegenerating || isReverseConverting || !hasUnsavedChanges}
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                hasUnsavedChanges
+                hasUnsavedChanges && !isRegenerating && !isReverseConverting
                   ? "bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
