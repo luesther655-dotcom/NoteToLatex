@@ -456,7 +456,8 @@ export default function Home() {
     saveHistoryTimeoutRef.current = setTimeout(async () => {
       try {
         const token = await getToken();
-        await fetch(`/api/history?id=${currentHistoryId}`, {
+        console.log("Auto-updating history:", { id: currentHistoryId, hasToken: !!token });
+        const response = await fetch(`/api/history?id=${currentHistoryId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -467,6 +468,7 @@ export default function Home() {
             latex_content: latexCode,
           }),
         });
+        console.log("Auto-update response:", response.status);
       } catch (e) {
         console.error("Failed to update history:", e);
       }
