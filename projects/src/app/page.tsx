@@ -12,7 +12,9 @@ import { UserMenu } from "@/components/user-menu";
 import { ProfileSettingsDialog } from "@/components/profile-settings-dialog";
 import { ApiConfigDialog } from "@/components/api-config-dialog";
 import { useAuth } from "@/lib/auth-context";
-import { pdfToImages } from "@/lib/pdf-utils";
+import { useCredits } from "@/lib/use-credits";
+import { pdfToImages, getPdfPageCount } from "@/lib/pdf-utils";
+import CreditsPurchase from "@/components/credits-purchase";
 
 type PipelineStep = "idle" | "uploading" | "ocr" | "validating" | "converting" | "done" | "error";
 
@@ -185,6 +187,7 @@ function splitTextSmartly(text: string, maxChunkSize: number): string[] {
 
 export default function Home() {
   const { user, username, loading: authLoading, signOut, getToken } = useAuth();
+  const { credits, fetchCredits } = useCredits();
   // Use refs to store latest user and getToken for async operations
   const userRef = useRef(user);
   const getTokenRef = useRef(getToken);
@@ -207,6 +210,7 @@ export default function Home() {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showApiConfig, setShowApiConfig] = useState(false);
+  const [showCreditsPurchase, setShowCreditsPurchase] = useState(false);
   
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -271,6 +275,35 @@ export default function Home() {
     setUploadedFiles(files);
     setErrorMsg("");
     setIsProcessing(true);
+
+    // Calculate total pages and check credits
+    let totalPages = 0;
+    for (const file of files) {
+      if (file.type === "application/pdf") {
+        // Get PDF page count without rendering
+        totalPages += await getPdfPageCount(file);
+      } else {
+        totalPages += 1;
+      }
+    }
+
+    // Check credits
+    const currentGetToken = getTokenRef.current;
+    const currentToken = await currentGetToken();
+    if (currentToken) {
+      const creditsRes = await fetch("/api/credits", {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      if (creditsRes.ok) {
+        const creditsData = await creditsRes.json();
+        if (creditsData.remaining < totalPages) {
+          setErrorMsg(`额度不足。需要 ${totalPages} 次，当前剩余 ${creditsData.remaining} 次。请购买额度后重试。`);
+          setStep("error");
+          setIsProcessing(false);
+          return;
+        }
+      }
+    }
 
     // Create preview for first image
     if (files[0].type.startsWith("image/")) {
@@ -504,6 +537,22 @@ export default function Home() {
       setLatexCode(latexText);
 
       setStep("done");
+
+      // Deduct credits
+      if (currentToken) {
+        try {
+          await fetch("/api/credits", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${currentToken}`,
+            },
+            body: JSON.stringify({ action: "deduct", pages: totalPages }),
+          });
+        } catch (e) {
+          console.warn("Credit deduction failed:", e);
+        }
+      }
 
       // Save to history if user is logged in
       // Use refs to get the latest user and getToken values
@@ -900,6 +949,18 @@ export default function Home() {
                 onOpenApiConfig={() => setShowApiConfig(true)}
               />
             )}
+            {user && (
+              <button
+                onClick={() => setShowCreditsPurchase(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+                {credits !== null ? `${credits.remaining} 次` : "..."}
+              </button>
+            )}
             <Link
               href="/help"
               className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -1109,6 +1170,27 @@ export default function Home() {
         isOpen={showApiConfig}
         onClose={() => setShowApiConfig(false)}
       />
+
+      {/* Credits Purchase Dialog */}
+      {showCreditsPurchase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreditsPurchase(false)} />
+          <div className="relative z-10 mx-4 w-full max-w-lg rounded-2xl border bg-background p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">购买额度</h2>
+              <button
+                onClick={() => setShowCreditsPurchase(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-accent"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <CreditsPurchase />
+          </div>
+        </div>
+      )}
 
       </div>
   );
