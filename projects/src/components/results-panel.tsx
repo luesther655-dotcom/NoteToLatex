@@ -285,13 +285,11 @@ export function ResultsPanel({
         )}
 
         {activeTab === "latex" && (
-          isRegenerating || isReverseConverting ? (
+          isRegenerating ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-[#F5F3EE] dark:bg-[#141620]">
               <div className="flex items-center gap-3">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#B8956A] border-t-transparent" />
-                <span className="text-sm text-muted-foreground font-medium">
-                  {isReverseConverting ? "Markdown 更新中..." : "LaTeX 更新中..."}
-                </span>
+                <span className="text-sm text-muted-foreground font-medium">LaTeX 更新中...</span>
               </div>
             </div>
           ) : (
@@ -306,13 +304,22 @@ export function ResultsPanel({
         )}
 
         {activeTab === "editor" && (
-          <textarea
-            value={markdown}
-            onChange={(e) => onMarkdownEdit(e.target.value)}
-            className="flex-1 w-full resize-none bg-transparent p-6 font-mono text-xs leading-relaxed text-foreground focus:outline-none placeholder:text-muted-foreground"
-            placeholder="在此编辑 Markdown 内容..."
-            spellCheck={false}
-          />
+          isReverseConverting ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-transparent">
+              <div className="flex items-center gap-3">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#B8956A] border-t-transparent" />
+                <span className="text-sm text-muted-foreground font-medium">Markdown 更新中...</span>
+              </div>
+            </div>
+          ) : (
+            <textarea
+              value={markdown}
+              onChange={(e) => onMarkdownEdit(e.target.value)}
+              className="flex-1 w-full resize-none bg-transparent p-6 font-mono text-xs leading-relaxed text-foreground focus:outline-none placeholder:text-muted-foreground"
+              placeholder="在此编辑 Markdown 内容..."
+              spellCheck={false}
+            />
+          )
         )}
       </div>
     </div>
