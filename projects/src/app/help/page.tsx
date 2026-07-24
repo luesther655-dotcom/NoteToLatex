@@ -62,7 +62,7 @@ export default function HelpPage() {
             本帮助文档将引导您了解全部功能与使用方法。
           </p>
           <a
-            href="/evaluation-guide.pdf"
+            href="/NoteToLaTeX_Manual.pdf"
             download
             className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-md bg-[#B8956A] text-white text-sm font-medium hover:bg-[#A6845C] transition-colors"
           >
