@@ -25,10 +25,10 @@ interface ApiConfig {
 
 const defaultConfig: ApiConfig = {
   ocr: {
-    provider: "deepseek",
-    model: "deepseek-chat",
+    provider: "coze",
+    model: "doubao-seed-2-0-pro-260215",
     apiKey: "",
-    baseUrl: "https://api.deepseek.com",
+    baseUrl: "https://api.coze.cn/v3",
   },
   validate: {
     provider: "deepseek",
@@ -43,17 +43,16 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  // 加载保存的配置，合并默认值以确保新字段生效
+  // 加载保存的配置，始终使用默认值（OCR=Coze，校验=DeepSeek），仅恢复 apiKey
   useEffect(() => {
     if (isOpen) {
       const savedConfig = localStorage.getItem("apiConfig")
       if (savedConfig) {
         try {
           const parsed = JSON.parse(savedConfig)
-          // 合并默认值，确保 provider/model/baseUrl 同步更新
           setConfig({
-            ocr: { ...defaultConfig.ocr, ...parsed.ocr },
-            validate: { ...defaultConfig.validate, ...parsed.validate },
+            ocr: { ...defaultConfig.ocr, apiKey: parsed.ocr?.apiKey ?? "" },
+            validate: { ...defaultConfig.validate, apiKey: parsed.validate?.apiKey ?? "" },
           })
         } catch {
           setConfig(defaultConfig)
@@ -129,7 +128,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.provider}
                   onChange={(e) => updateOcrConfig("provider", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="deepseek"
+                  placeholder="coze"
                 />
               </div>
               <div>
@@ -139,7 +138,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.model}
                   onChange={(e) => updateOcrConfig("model", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="deepseek-chat"
+                  placeholder="doubao-seed-2-0-pro-260215"
                 />
               </div>
               <div>
@@ -164,7 +163,7 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.baseUrl}
                   onChange={(e) => updateOcrConfig("baseUrl", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="https://api.deepseek.com"
+                  placeholder="https://api.coze.cn/v3"
                 />
               </div>
             </div>

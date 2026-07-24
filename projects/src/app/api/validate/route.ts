@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { type Message } from "coze-coding-dev-sdk";
-import { createLLMClient } from "@/lib/llm-config";
+import { createLLMClient, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL } from "@/lib/llm-config";
 
 export const maxDuration = 120;
 
@@ -15,7 +15,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { client, model } = createLLMClient(apiConfig, request.headers);
+    // Use DeepSeek as default for validation; user's custom config overrides
+    const deepseekConfig = {
+      apiKey: DEEPSEEK_API_KEY,
+      baseUrl: DEEPSEEK_BASE_URL,
+      model: DEEPSEEK_MODEL,
+    };
+    const mergedConfig = apiConfig
+      ? { ...deepseekConfig, ...apiConfig }
+      : deepseekConfig;
+    const { client, model } = createLLMClient(mergedConfig, request.headers);
 
     const messages: Message[] = [
       {
