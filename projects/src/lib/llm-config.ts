@@ -6,7 +6,8 @@ export const DEFAULT_LLM_BASE_URL = process.env.DEFAULT_LLM_BASE_URL || "https:/
 export const DEFAULT_LLM_MODEL = process.env.DEFAULT_LLM_MODEL || "doubao-seed-2-0-pro-260215";
 
 // DeepSeek config (shared by validate, LaTeX, reverse LaTeX)
-export const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "sk-3390696ffce44cd68c32523ab7fb7d34";
+// Set DEEPSEEK_API_KEY env var in production (or .env.local for local dev)
+export const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 export const DEEPSEEK_MODEL = "deepseek-chat";
 
