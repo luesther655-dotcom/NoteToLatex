@@ -22,7 +22,8 @@ src/
 │   │   ├── latex/route.ts         # Markdown→LaTeX 转换 API (SSE 流式)
 │   │   ├── reverse-latex/route.ts # LaTeX→Markdown 反向转换 API
 │   │   ├── auth/                  # 认证 API (login/register/me)
-│   │   └── history/route.ts       # 历史记录 CRUD API
+│   │   ├── history/route.ts       # 历史记录 CRUD API
+│   │   └── config/supabase/route.ts # Supabase 配置 API (运行时凭证)
 │   ├── globals.css                # 全局样式 + 学术主题色
 │   ├── layout.tsx                 # 根布局 (ThemeProvider + AuthProvider)
 │   └── page.tsx                   # 主页面 (上传→处理→结果)
@@ -123,6 +124,7 @@ src/
 - Node.js 项目只允许使用 `pnpm`，禁止 `npm` 或 `yarn`
 - **Supabase 配置缺失降级**: 当 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 未配置时，`auth-context.tsx` 会降级处理（返回 null），页面可正常显示但认证功能不可用。需在平台配置 Supabase 环境变量后才能使用登录/注册/历史记录功能。
   - ⚠️ 平台环境变量名必须使用 `NEXT_PUBLIC_` 前缀，禁止使用 `COZE_` 前缀
+  - **运行时回退**: 若构建时 `NEXT_PUBLIC_` 环境变量未设置，`auth-context.tsx` 会调用 `/api/config/supabase` 端点从服务端运行时获取凭证。该端点通过 `supabase-client.ts` 的 `loadEnv()` 加载环境变量（支持 dotenv / Python SDK）。
 - **LLM API 环境变量**: 默认 LLM 配置通过环境变量管理，优先级：用户前端传入 > 环境变量 > SDK 默认值
   - `DEFAULT_LLM_API_KEY` - 默认 API Key
   - `DEFAULT_LLM_BASE_URL` - 默认 Base URL

@@ -17,26 +17,57 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 let supabaseClient: SupabaseClient | null = null;
+let supabaseInitPromise: Promise<SupabaseClient | null> | null = null;
 
-function getSupabaseBrowserClient() {
-  if (supabaseClient) return supabaseClient;
-  
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  
-  if (!url || !anonKey) {
-    console.warn('Supabase environment variables not configured. Auth features will be disabled.');
+async function fetchSupabaseConfig(): Promise<{ url: string; anonKey: string } | null> {
+  try {
+    const res = await fetch('/api/config/supabase');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.url && data.anonKey ? { url: data.url, anonKey: data.anonKey } : null;
+  } catch {
     return null;
   }
-  
-  supabaseClient = createClient(url, anonKey, {
+}
+
+function createSupabaseClient(url: string, anonKey: string): SupabaseClient {
+  return createClient(url, anonKey, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
     },
   });
-  
-  return supabaseClient;
+}
+
+function getSupabaseBrowserClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  if (url && anonKey) {
+    supabaseClient = createSupabaseClient(url, anonKey);
+    return supabaseClient;
+  }
+
+  return null;
+}
+
+async function initSupabaseClient(): Promise<SupabaseClient | null> {
+  if (supabaseClient) return supabaseClient;
+  if (supabaseInitPromise) return supabaseInitPromise;
+
+  supabaseInitPromise = (async () => {
+    const config = await fetchSupabaseConfig();
+    if (config) {
+      supabaseClient = createSupabaseClient(config.url, config.anonKey);
+      return supabaseClient;
+    }
+    console.warn('Supabase not configured via build-time env vars or runtime API. Auth features will be disabled.');
+    return null;
+  })();
+
+  return supabaseInitPromise;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -44,35 +75,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    
-    if (!supabase) {
-      // Supabase not configured, disable auth features
-      setLoading(false);
-      return;
+    let cancelled = false;
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    function setupAuth(client: SupabaseClient) {
+      client.auth.getSession().then(({ data: { session } }) => {
+        if (cancelled) return;
+        setUser(session?.user ?? null);
+        setLoading(false);
+      });
+
+      const sub = client.auth.onAuthStateChange((_event, session) => {
+        if (cancelled) return;
+        setUser(session?.user ?? null);
+      });
+      subscription = sub.data.subscription;
     }
-    
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    const client = getSupabaseBrowserClient();
+    if (client) {
+      setupAuth(client);
+    } else {
+      // Build-time env vars not available; try runtime API fetch
+      initSupabaseClient().then(apiClient => {
+        if (cancelled) return;
+        if (apiClient) {
+          setupAuth(apiClient);
+        } else {
+          setLoading(false);
+        }
+      });
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const getClient = useCallback(async (): Promise<SupabaseClient | null> => {
+    const client = getSupabaseBrowserClient();
+    if (client) return client;
+    return initSupabaseClient();
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = await getClient();
     if (!supabase) return { error: '认证服务未配置' };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
-  }, []);
+  }, [getClient]);
 
   const signUp = useCallback(async (email: string, password: string, username: string) => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = await getClient();
     if (!supabase) return { error: '认证服务未配置' };
     const { error } = await supabase.auth.signUp({
       email,
@@ -84,27 +139,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     return { error: error?.message ?? null };
-  }, []);
+  }, [getClient]);
 
   const signOut = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = await getClient();
     if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
-  }, []);
+  }, [getClient]);
 
   const getToken = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = await getClient();
     if (!supabase) return null;
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ?? null;
-  }, []);
+  }, [getClient]);
 
   const updateProfile = useCallback(async (updates: { username?: string; avatarUrl?: string }) => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = await getClient();
     if (!supabase) return { success: false, error: '认证服务未配置' };
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    
+
     if (!currentUser) {
       return { success: false, error: '未登录' };
     }
@@ -132,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return { success: true };
-  }, []);
+  }, [getClient]);
 
   const username = user?.user_metadata?.username || user?.email?.split('@')[0] || null;
 
