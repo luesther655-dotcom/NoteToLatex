@@ -6,7 +6,6 @@
       <path d="M20 30V24h40v6" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M38 56h4" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M40 24v32" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="40" y="68" text-anchor="middle" fill="white" font-size="8" font-family="serif" font-weight="bold">NL</text>
     </svg>
   </div>
   <h1 align="center">NoteToLaTeX</h1>
