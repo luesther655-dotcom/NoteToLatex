@@ -10,8 +10,10 @@ interface ApiConfigDialogProps {
 
 interface ApiConfig {
   ocr: {
-    token: string
+    provider: string
     model: string
+    apiKey: string
+    baseUrl: string
   }
   validate: {
     provider: string
@@ -23,14 +25,16 @@ interface ApiConfig {
 
 const defaultConfig: ApiConfig = {
   ocr: {
-    token: "25b06606a7df2c954d5edeaa68d86f3cab0f5bba",
-    model: "PaddleOCR-VL-1.6",
+    provider: "coze",
+    model: "doubao-seed-2-0-pro-260215",
+    apiKey: "",
+    baseUrl: "",
   },
   validate: {
     provider: "coze",
-    model: process.env.NEXT_PUBLIC_DEFAULT_LLM_MODEL || "doubao-seed-2-0-pro-260215",
-    apiKey: process.env.NEXT_PUBLIC_DEFAULT_LLM_API_KEY || "",
-    baseUrl: process.env.NEXT_PUBLIC_DEFAULT_LLM_BASE_URL || "",
+    model: "doubao-seed-2-0-pro-260215",
+    apiKey: "",
+    baseUrl: "",
   },
 }
 
@@ -39,17 +43,13 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  // 加载保存的配置，与默认值合并确保字段兼容
+  // 加载保存的配置
   useEffect(() => {
     if (isOpen) {
       const savedConfig = localStorage.getItem("apiConfig")
       if (savedConfig) {
         try {
-          const parsed = JSON.parse(savedConfig)
-          setConfig({
-            ocr: { ...defaultConfig.ocr, ...parsed.ocr },
-            validate: { ...defaultConfig.validate, ...parsed.validate },
-          })
+          setConfig(JSON.parse(savedConfig))
         } catch {
           setConfig(defaultConfig)
         }
@@ -110,19 +110,19 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
           {/* OCR 配置 */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Key className="w-4 h-4 text-[#B8956A]" />
+              <Server className="w-4 h-4 text-[#B8956A]" />
               OCR 模型配置
             </div>
             
             <div className="space-y-3 pl-6">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Token</label>
+                <label className="block text-xs text-muted-foreground mb-1">服务商</label>
                 <input
-                  type="password"
-                  value={config.ocr.token}
-                  onChange={(e) => updateOcrConfig("token", e.target.value)}
+                  type="text"
+                  value={config.ocr.provider}
+                  onChange={(e) => updateOcrConfig("provider", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="PaddleOCR Token"
+                  placeholder="coze"
                 />
               </div>
               <div>
@@ -132,7 +132,32 @@ export function ApiConfigDialog({ isOpen, onClose }: ApiConfigDialogProps) {
                   value={config.ocr.model}
                   onChange={(e) => updateOcrConfig("model", e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
-                  placeholder="PaddleOCR-VL-1.6"
+                  placeholder="doubao-seed-2-0-pro-260215"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  <span className="flex items-center gap-1">
+                    <Key className="w-3 h-3" />
+                    API Key
+                  </span>
+                </label>
+                <input
+                  type="password"
+                  value={config.ocr.apiKey}
+                  onChange={(e) => updateOcrConfig("apiKey", e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
+                  placeholder="输入 API Key"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Base URL (可选)</label>
+                <input
+                  type="text"
+                  value={config.ocr.baseUrl}
+                  onChange={(e) => updateOcrConfig("baseUrl", e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-[#B8956A]"
+                  placeholder="https://api.coze.cn/v3"
                 />
               </div>
             </div>
