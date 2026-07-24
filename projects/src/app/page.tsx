@@ -63,7 +63,7 @@ export default function Home() {
   userRef.current = user;
   getTokenRef.current = getToken;
   const [step, setStep] = useState<PipelineStep>("idle");
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [ocrMarkdown, setOcrMarkdown] = useState("");
   const [validatedMarkdown, setValidatedMarkdown] = useState("");
@@ -90,7 +90,7 @@ export default function Home() {
 
   const resetState = useCallback(() => {
     setStep("idle");
-    setUploadedFile(null);
+    setUploadedFiles([]);
     setPreviewUrl(null);
     setOcrMarkdown("");
     setValidatedMarkdown("");
@@ -134,15 +134,17 @@ export default function Home() {
     setLatexProgress("");
   }, []);
 
-  const processFile = useCallback(async (file: File) => {
+  const processFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    
     resetState();
-    setUploadedFile(file);
+    setUploadedFiles(files);
     setErrorMsg("");
     setIsProcessing(true);
 
-    // Create preview for images
-    if (file.type.startsWith("image/")) {
-      const url = URL.createObjectURL(file);
+    // Create preview for first image
+    if (files[0].type.startsWith("image/")) {
+      const url = URL.createObjectURL(files[0]);
       setPreviewUrl(url);
     }
 
@@ -157,25 +159,32 @@ export default function Home() {
       setStep("ocr");
       setOcrProgress("");
 
-      // Handle PDF files by converting to images first
-      let filesToProcess: File[] = [file];
-      if (file.type === "application/pdf") {
-        setOcrProgress("正在将 PDF 转为图片...");
-        filesToProcess = await pdfToImages(file);
-        if (filesToProcess.length === 0) {
-          throw new Error("PDF 图片提取失败");
+      // Collect all files to process (expand PDFs to images)
+      let allFilesToProcess: File[] = [];
+      for (const file of files) {
+        if (file.type === "application/pdf") {
+          setOcrProgress(`正在将 ${file.name} 转为图片...`);
+          const pdfImages = await pdfToImages(file);
+          if (pdfImages.length === 0) {
+            throw new Error(`${file.name} PDF 图片提取失败`);
+          }
+          allFilesToProcess.push(...pdfImages);
+          // Use first page for preview if no preview yet
+          if (!previewUrl) {
+            const url = URL.createObjectURL(pdfImages[0]);
+            setPreviewUrl(url);
+          }
+        } else {
+          allFilesToProcess.push(file);
         }
-        // Use first page for preview
-        const url = URL.createObjectURL(filesToProcess[0]);
-        setPreviewUrl(url);
       }
 
-      // Process files - send all at once for single image, or page by page for multi-page PDFs
+      // Process files - send all at once for single image, or in batches for multiple
       let ocrText = "";
-      if (filesToProcess.length === 1) {
+      if (allFilesToProcess.length === 1) {
         // Single image - send directly
         const formData = new FormData();
-        formData.append("file", filesToProcess[0]);
+        formData.append("file", allFilesToProcess[0]);
 
         const ocrResponse = await fetch("/api/ocr", {
           method: "POST",
@@ -199,17 +208,17 @@ export default function Home() {
           setOcrProgress((prev) => prev + chunk);
         });
       } else {
-        // Multi-page PDF - process in batches to maintain context while avoiding size limits
-        const BATCH_SIZE = 3; // Process 3 pages at a time to maintain inter-page context
+        // Multiple files - process in batches to maintain context while avoiding size limits
+        const BATCH_SIZE = 3;
         const pageTexts: string[] = [];
-        const totalBatches = Math.ceil(filesToProcess.length / BATCH_SIZE);
+        const totalBatches = Math.ceil(allFilesToProcess.length / BATCH_SIZE);
         
         for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
           const startPage = batchIndex * BATCH_SIZE;
-          const endPage = Math.min(startPage + BATCH_SIZE, filesToProcess.length);
-          const batchFiles = filesToProcess.slice(startPage, endPage);
+          const endPage = Math.min(startPage + BATCH_SIZE, allFilesToProcess.length);
+          const batchFiles = allFilesToProcess.slice(startPage, endPage);
           
-          setOcrProgress(`正在处理第 ${startPage + 1}-${endPage} 页 (共 ${filesToProcess.length} 页)...`);
+          setOcrProgress(`正在处理第 ${startPage + 1}-${endPage} 页 (共 ${allFilesToProcess.length} 页)...`);
 
           const formData = new FormData();
           batchFiles.forEach((f, idx) => {
@@ -305,7 +314,7 @@ export default function Home() {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-              title: uploadedFile?.name || "Untitled",
+              title: files.length === 1 ? files[0].name : `${files.length} files`,
               source_image_url: previewUrl,
               markdown_content: validatedText,
               latex_content: latexText,
@@ -336,7 +345,30 @@ export default function Home() {
     } finally {
       setIsProcessing(false);
     }
-  }, [resetState, uploadedFile, previewUrl]);
+  }, [resetState, previewUrl]);
+
+  // Handle file selection (add to list)
+  const handleFilesSelect = useCallback((files: File[]) => {
+    setUploadedFiles(prev => [...prev, ...files]);
+  }, []);
+
+  // Handle remove file from list
+  const handleRemoveFile = useCallback((index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  // Handle clear all files
+  const handleClearFiles = useCallback(() => {
+    setUploadedFiles([]);
+    setPreviewUrl(null);
+  }, []);
+
+  // Handle start convert
+  const handleStartConvert = useCallback(() => {
+    if (uploadedFiles.length > 0) {
+      processFiles(uploadedFiles);
+    }
+  }, [uploadedFiles, processFiles]);
 
   // Shared refs for regeneration logic
   const editorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -528,7 +560,7 @@ export default function Home() {
     setCurrentHistoryId(item.id);
     setHistorySaved(true);
     setErrorMsg("");
-    setUploadedFile(null);
+    setUploadedFiles([]);
     setPreviewUrl(null);
     setHasUnsavedChanges(false);
     // Update last saved content to prevent unnecessary auto-save
@@ -687,7 +719,14 @@ export default function Home() {
                 </p>
               </div>
 
-              <FileUpload onFileSelect={processFile} isProcessing={false} />
+              <FileUpload
+                onFilesSelect={handleFilesSelect}
+                onStartConvert={handleStartConvert}
+                isProcessing={isProcessing}
+                uploadedFiles={uploadedFiles}
+                onRemoveFile={handleRemoveFile}
+                onClearFiles={handleClearFiles}
+              />
 
               {/* Decorative math symbols */}
               <div className="mt-8 flex items-center justify-center gap-6 text-muted-foreground/30 text-xs font-mono select-none">
@@ -712,14 +751,14 @@ export default function Home() {
               {/* Left panel: Upload preview + Pipeline */}
               <div className="lg:col-span-4 space-y-4">
                 {/* File preview */}
-                {uploadedFile && (
+                {uploadedFiles.length > 0 && (
                   <div className="border border-border rounded-lg bg-card overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
                       <span className="text-xs font-medium text-muted-foreground">
                         Source
                       </span>
                       <span className="text-[10px] text-muted-foreground font-mono">
-                        {uploadedFile.name}
+                        {uploadedFiles.length === 1 ? uploadedFiles[0].name : `${uploadedFiles.length} files`}
                       </span>
                     </div>
                     {previewUrl ? (
