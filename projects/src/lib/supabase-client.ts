@@ -10,8 +10,8 @@ interface SupabaseCredentials {
 }
 
 function loadEnv(): void {
-  const hasUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const hasKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const hasKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (envLoaded || (hasUrl && hasKey)) {
     return;
   }
@@ -23,9 +23,7 @@ function loadEnv(): void {
       // Try .env.local first, then .env
       dotenv.config({ path: '.env.local' });
       dotenv.config();
-      const hasUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const hasKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (hasUrl && hasKey) {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         envLoaded = true;
         return;
       }
@@ -79,15 +77,15 @@ except Exception as e:
 function getSupabaseCredentials(): SupabaseCredentials {
   loadEnv();
 
-  // Try COZE_ prefix first (platform), then NEXT_PUBLIC_ prefix (local dev)
-  const url = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Use NEXT_PUBLIC_ prefix (platform env vars must not use COZE_ prefix)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url) {
-    throw new Error('Supabase URL is not set (COZE_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL)');
+    throw new Error('Supabase URL is not set (NEXT_PUBLIC_SUPABASE_URL)');
   }
   if (!anonKey) {
-    throw new Error('Supabase anon key is not set (COZE_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY)');
+    throw new Error('Supabase anon key is not set (NEXT_PUBLIC_SUPABASE_ANON_KEY)');
   }
 
   return { url, anonKey };
@@ -95,7 +93,7 @@ function getSupabaseCredentials(): SupabaseCredentials {
 
 function getSupabaseServiceRoleKey(): string | undefined {
   loadEnv();
-  return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  return process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
 function getSupabaseClient(token?: string): SupabaseClient {
