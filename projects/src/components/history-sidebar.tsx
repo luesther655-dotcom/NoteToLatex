@@ -8,6 +8,26 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, Trash2, Loader2, FileText, Pencil, Check, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// 截断文件名：超过8个字时截断扩展名前的部分
+function truncateFileName(fileName: string, maxLength: number = 8): string {
+  if (!fileName || fileName.length <= maxLength) return fileName;
+  
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1) {
+    // 没有扩展名，直接截断
+    return fileName.substring(0, maxLength) + '...';
+  }
+  
+  const nameWithoutExt = fileName.substring(0, lastDotIndex);
+  const extension = fileName.substring(lastDotIndex);
+  
+  if (nameWithoutExt.length <= maxLength) {
+    return fileName;
+  }
+  
+  return nameWithoutExt.substring(0, maxLength) + '...' + extension;
+}
+
 interface ConversionHistoryItem {
   id: string;
   title: string;
@@ -239,8 +259,8 @@ export function HistorySidebar({ onSelectHistory, selectedId, refreshKey, onHist
                       <>
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <p className="text-sm font-medium truncate">
-                            {item.title || 'Untitled'}
+                          <p className="text-sm font-medium truncate" title={item.title || 'Untitled'}>
+                            {truncateFileName(item.title || 'Untitled')}
                           </p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
