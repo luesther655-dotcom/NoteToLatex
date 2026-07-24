@@ -153,31 +153,66 @@ export default function Home() {
         setPreviewUrl(url);
       }
 
-      // Send all files at once for OCR (multi-page PDFs will be processed together)
-      const formData = new FormData();
-      for (const f of filesToProcess) {
-        formData.append("file", f);
-      }
-
-      if (filesToProcess.length > 1) {
-        setOcrProgress(`正在识别 ${filesToProcess.length} 页内容...`);
-      }
-
-      const ocrResponse = await fetch("/api/ocr", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      });
-
-      if (!ocrResponse.ok) {
-        const errData = await ocrResponse.json();
-        throw new Error(errData.error || "OCR 识别失败");
-      }
-
+      // Process files - send all at once for single image, or page by page for multi-page PDFs
       let ocrText = "";
-      ocrText = await readSSEStream(ocrResponse, (chunk) => {
-        setOcrProgress((prev) => prev + chunk);
-      });
+      if (filesToProcess.length === 1) {
+        // Single image - send directly
+        const formData = new FormData();
+        formData.append("file", filesToProcess[0]);
+
+        const ocrResponse = await fetch("/api/ocr", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+
+        if (!ocrResponse.ok) {
+          const contentType = ocrResponse.headers.get("content-type") || "";
+          let errorMessage = "OCR 识别失败";
+          if (contentType.includes("application/json")) {
+            const errData = await ocrResponse.json();
+            errorMessage = errData.error || errorMessage;
+          } else {
+            errorMessage = `服务器错误 (${ocrResponse.status})`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        ocrText = await readSSEStream(ocrResponse, (chunk) => {
+          setOcrProgress((prev) => prev + chunk);
+        });
+      } else {
+        // Multi-page PDF - process page by page to avoid request size limits
+        const pageTexts: string[] = [];
+        for (let i = 0; i < filesToProcess.length; i++) {
+          setOcrProgress(`正在处理第 ${i + 1}/${filesToProcess.length} 页...`);
+
+          const formData = new FormData();
+          formData.append("file", filesToProcess[i]);
+
+          const ocrResponse = await fetch("/api/ocr", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          });
+
+          if (!ocrResponse.ok) {
+            const contentType = ocrResponse.headers.get("content-type") || "";
+            let errorMessage = `第 ${i + 1} 页 OCR 识别失败`;
+            if (contentType.includes("application/json")) {
+              const errData = await ocrResponse.json();
+              errorMessage = errData.error || errorMessage;
+            } else {
+              errorMessage = `服务器错误 (${ocrResponse.status})`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          const pageText = await readSSEStream(ocrResponse, () => {});
+          pageTexts.push(pageText);
+        }
+        ocrText = pageTexts.join("\n\n");
+      }
       setOcrMarkdown(ocrText);
 
       // Step 2: Validate
