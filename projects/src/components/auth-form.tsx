@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 
 export function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,6 +17,7 @@ export function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { signIn, signUp } = useAuth();
 
@@ -37,14 +38,14 @@ export function AuthForm() {
         if (error) {
           setError(error);
         } else {
-          setMessage('Registration successful! Please check your email to verify your account.');
+          setMessage('注册成功！请检查邮箱验证您的账户。');
           setEmail('');
           setPassword('');
           setUsername('');
         }
       }
     } catch {
-      setError('An unexpected error occurred');
+      setError('发生未知错误');
     } finally {
       setLoading(false);
     }
@@ -54,12 +55,12 @@ export function AuthForm() {
     <Card className="w-full max-w-md mx-auto bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader>
         <CardTitle className="text-2xl font-serif text-center">
-          {isLogin ? 'Welcome Back' : 'Create Account'}
+          {isLogin ? '欢迎回来' : '创建账户'}
         </CardTitle>
         <CardDescription className="text-center">
           {isLogin
-            ? 'Sign in to access your conversion history'
-            : 'Sign up to save your conversions'}
+            ? '登录以访问您的转换历史记录'
+            : '注册以保存您的转换记录'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -76,11 +77,11 @@ export function AuthForm() {
           )}
           {!isLogin && (
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">用户名</Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Your username"
+                placeholder="请输入用户名"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -90,7 +91,7 @@ export function AuthForm() {
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">邮箱</Label>
             <Input
               id="email"
               type="email"
@@ -102,27 +103,42 @@ export function AuthForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-              minLength={6}
-            />
+            <Label htmlFor="password">密码</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                minLength={6}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLogin ? 'Sign In' : 'Sign Up'}
+            {isLogin ? '登录' : '注册'}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="flex-col space-y-2">
         <div className="text-sm text-muted-foreground text-center">
-          {isLogin ? "Don't have an account? " : 'Already have an account? '}
+          {isLogin ? '还没有账户？' : '已有账户？'}
           <button
             type="button"
             onClick={() => {
@@ -130,9 +146,9 @@ export function AuthForm() {
               setError(null);
               setMessage(null);
             }}
-            className="text-primary hover:underline font-medium"
+            className="text-primary hover:underline font-medium ml-1"
           >
-            {isLogin ? 'Sign up' : 'Sign in'}
+            {isLogin ? '立即注册' : '立即登录'}
           </button>
         </div>
       </CardFooter>
