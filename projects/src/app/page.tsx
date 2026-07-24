@@ -934,6 +934,21 @@ export default function Home() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B8956A]" />
           </div>
+        ) : !user ? (
+          /* Auth Required */
+          <div className="flex flex-col items-center justify-center min-h-[400px] gap-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-serif font-bold tracking-tight">
+                手写笔记转 LaTeX
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                上传手写笔记（图片或 PDF 格式），AI 识别校验并转换为可出版的 LaTeX 代码。
+              </p>
+            </div>
+            <div className="w-full max-w-sm">
+              <AuthForm onSuccess={() => setShowAuthDialog(false)} />
+            </div>
+          </div>
         ) : step === "idle" ? (
           /* Upload State */
           <div className="flex gap-6">
@@ -955,17 +970,6 @@ export default function Home() {
                   <br />
                   AI 将识别、校验并转换为可出版的 LaTeX 代码。
                 </p>
-                {!user && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    <button
-                      onClick={() => setShowAuthDialog(true)}
-                      className="text-[#B8956A] hover:underline"
-                    >
-                      登录
-                    </button>
-                    {" "}后可保存历史记录
-                  </p>
-                )}
               </div>
 
               <FileUpload
