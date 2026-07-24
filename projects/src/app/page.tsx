@@ -250,6 +250,8 @@ export default function Home() {
             setCurrentHistoryId(data.history?.id || null);
             setHistorySaved(true);
             setHistoryRefreshKey(prev => prev + 1); // Trigger sidebar refresh
+            // Update last saved content to prevent unnecessary auto-save
+            lastSavedContentRef.current = { markdown: validatedText, latex: latexText };
           } else {
             const errData = await response.json();
             console.error("Failed to save history:", errData);
@@ -444,11 +446,15 @@ export default function Home() {
     setErrorMsg("");
     setUploadedFile(null);
     setPreviewUrl(null);
+    // Update last saved content to prevent unnecessary auto-save
+    lastSavedContentRef.current = { markdown: item.markdown_content, latex: item.latex_content };
   }, []);
 
   // Auto-save history when content changes (debounced)
   const saveHistoryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSaveCountRef = useRef(0);
+  const lastSavedContentRef = useRef<{ markdown: string; latex: string } | null>(null);
+  
   useEffect(() => {
     autoSaveCountRef.current += 1;
     console.log("Auto-save useEffect triggered:", { 
@@ -459,13 +465,25 @@ export default function Home() {
       hasMarkdown: validatedMarkdown.length > 0,
       hasLatex: latexCode.length > 0
     });
+    
+    // Cancel any pending save when dependencies change
+    if (saveHistoryTimeoutRef.current) {
+      clearTimeout(saveHistoryTimeoutRef.current);
+      saveHistoryTimeoutRef.current = null;
+    }
+    
     if (!user || step !== "done" || !currentHistoryId) {
       console.log("Auto-save skipped:", { hasUser: !!user, step, hasHistoryId: !!currentHistoryId });
       return;
     }
-    if (saveHistoryTimeoutRef.current) {
-      clearTimeout(saveHistoryTimeoutRef.current);
+    
+    // Check if content actually changed since last save
+    const lastSaved = lastSavedContentRef.current;
+    if (lastSaved && lastSaved.markdown === validatedMarkdown && lastSaved.latex === latexCode) {
+      console.log("Auto-save skipped: content unchanged");
+      return;
     }
+    
     saveHistoryTimeoutRef.current = setTimeout(async () => {
       try {
         const token = await getToken();
@@ -483,14 +501,18 @@ export default function Home() {
         });
         const result = await response.json();
         console.log("Auto-update response:", response.status, result);
+        // Update last saved content after successful save
+        lastSavedContentRef.current = { markdown: validatedMarkdown, latex: latexCode };
       } catch (e) {
         console.error("Failed to update history:", e);
       }
     }, 2000);
+    
     return () => {
       console.log("Auto-save cleanup called, count:", autoSaveCountRef.current);
       if (saveHistoryTimeoutRef.current) {
         clearTimeout(saveHistoryTimeoutRef.current);
+        saveHistoryTimeoutRef.current = null;
       }
     };
   }, [user?.id, step, currentHistoryId, validatedMarkdown, latexCode, getToken]);
