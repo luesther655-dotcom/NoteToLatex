@@ -1,3 +1,7 @@
+import { config } from 'dotenv';
+// Load .env.local before anything else to ensure NEXT_PUBLIC_* vars are available
+config({ path: '.env.local' });
+
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
